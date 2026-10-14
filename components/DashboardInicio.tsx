@@ -298,6 +298,7 @@ export default function DashboardInicio({
 
   const pendiente = (titulo: string, detalle: string, tab: string, color: string, Ico: any) => (
     <button
+      key={tab}
       onClick={() => onNavegar?.(tab)}
       disabled={!onNavegar}
       style={{
