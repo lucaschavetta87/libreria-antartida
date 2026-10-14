@@ -212,6 +212,7 @@ export default function Home() {
         darkMode={darkMode}
         setDarkMode={setDarkMode}
         isCollapsed={isSidebarCollapsed}
+        esMovil={isMobile}
         usuarioActivo={usuarioActivo}
         stock={stock}
         pedidosPendientes={ordenes.filter((o: any) => !o.estado || String(o.estado).toLowerCase() !== 'entregado').length}

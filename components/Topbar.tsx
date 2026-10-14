@@ -13,6 +13,7 @@ interface TopbarProps {
   darkMode: boolean;
   setDarkMode: (val: any) => void;
   isCollapsed: boolean;
+  esMovil: boolean;
   usuarioActivo: any | null;
   stock?: any[];
   pedidosPendientes?: number;
@@ -23,7 +24,7 @@ type Sugerencia = { tipo: 'seccion' | 'producto'; titulo: string; detalle?: stri
 // Barra superior: es el marco fijo de la app.
 // Concentra el título de la sección, el acceso rápido a todo el sistema
 // (Ctrl/Cmd + K) y el menú de navegación en el celular.
-export default function Topbar({ activeTab, setActiveTab, darkMode, setDarkMode, isCollapsed, usuarioActivo, stock = [], pedidosPendientes = 0 }: TopbarProps) {
+export default function Topbar({ activeTab, setActiveTab, darkMode, setDarkMode, isCollapsed, esMovil, usuarioActivo, stock = [], pedidosPendientes = 0 }: TopbarProps) {
   const [menuAbierto, setMenuAbierto] = useState(false);
   const [paletaAbierta, setPaletaAbierta] = useState(false);
   const [consulta, setConsulta] = useState('');
@@ -96,7 +97,7 @@ export default function Topbar({ activeTab, setActiveTab, darkMode, setDarkMode,
         style={{
           position: 'fixed',
           top: 0,
-          left: isCollapsed ? 76 : 248,
+          left: esMovil ? 0 : (isCollapsed ? 76 : 248),
           right: 0,
           height: 62,
           zIndex: 900,
@@ -106,13 +107,13 @@ export default function Topbar({ activeTab, setActiveTab, darkMode, setDarkMode,
           alignItems: 'center',
           justifyContent: 'space-between',
           gap: 12,
-          padding: '0 18px'
+          padding: esMovil ? '0 12px' : '0 18px'
         }}
       >
         {/* Lado izquierdo: en celular abre el menú */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
           <button
-            className="solo-movil"
+            className={esMovil ? undefined : 'solo-movil'}
             onClick={() => setMenuAbierto(true)}
             aria-label="Abrir menú"
             style={{
