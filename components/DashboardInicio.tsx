@@ -38,6 +38,9 @@ type MetricasType = {
   clientes: number;
   clientesConDeuda: number;
   totalProductos: number;
+  productosConVariedades: number;
+  totalVariedades: number;
+  itemsVendibles: number;
   productosDisponibles: number;
   productosAgotados: number;
   valorInventarioCosto: number;
@@ -50,7 +53,8 @@ type MetricasType = {
 const METRICAS_VACIAS: MetricasType = {
   cajaHoy: 0, gananciaHoy: 0, baseGananciaHoy: 0, ventasHoy: 0, ventasHoySinDetalle: 0,
   totalCalle: 0, clientes: 0, clientesConDeuda: 0,
-  totalProductos: 0, productosDisponibles: 0, productosAgotados: 0, valorInventarioCosto: 0,
+  totalProductos: 0, productosConVariedades: 0, totalVariedades: 0, itemsVendibles: 0,
+  productosDisponibles: 0, productosAgotados: 0, valorInventarioCosto: 0,
   pedidosPendientes: 0, cajaSinCerrar: false,
   graficoSemana: [], graficoMeses: []
 };
@@ -69,18 +73,21 @@ export default function DashboardInicio({
   const cargarMetricasYBalances = async (silencioso = false) => {
     if (!silencioso) setCargando(true);
     try {
-      // 1. Precios vivos + estado real de stock
-      const { data: stockItems } = await supabase
+      // 1. Precios vivos + estado real de stock (incluye variedades: cada
+      //    variedad es un ítem vendible con código y precio propios).
+      const { data: stockItems, count: conteoStock } = await supabase
         .from('stock')
-        .select('nombre, precio_costo, precio_minorista, precio_mayorista, sin_stock');
+        .select('nombre, precio_costo, precio_minorista, precio_mayorista, sin_stock, variedades', { count: 'exact' });
 
       const mapaPrecios = new Map<string, { costo: number; venta: number }>();
-      let totalProductos = 0;
+      let totalProductos = conteoStock ?? 0;
       let productosAgotados = 0;
+      let productosConVariedades = 0;
+      let totalVariedades = 0;
       let valorInventarioCosto = 0;
 
       if (stockItems) {
-        totalProductos = stockItems.length;
+        totalProductos = conteoStock ?? stockItems.length;
         stockItems.forEach((item: any) => {
           if (item.nombre) {
             mapaPrecios.set(item.nombre.trim().toLowerCase(), {
@@ -89,9 +96,23 @@ export default function DashboardInicio({
             });
           }
           if (item.sin_stock) productosAgotados++;
-          valorInventarioCosto += Number(item.precio_costo) || 0;
+
+          const variedades = Array.isArray(item.variedades) ? item.variedades : [];
+          const conNombre = variedades.filter((v: any) => v && String(v.nombre || '').trim());
+          if (conNombre.length > 0) {
+            productosConVariedades++;
+            totalVariedades += conNombre.length;
+            conNombre.forEach((v: any) => {
+              valorInventarioCosto += Number(v.precio_costo) || 0;
+            });
+          } else {
+            valorInventarioCosto += Number(item.precio_costo) || 0;
+          }
         });
       }
+
+      // Ítems realmente vendibles: productos simples + todas sus variedades.
+      const itemsVendibles = Math.max(0, totalProductos - productosConVariedades) + totalVariedades;
 
       // 2. Ventas completadas
       const { data: ventas } = await supabase
@@ -219,7 +240,8 @@ export default function DashboardInicio({
         ventasHoy: resumenHoy.cantidad,
         ventasHoySinDetalle: resumenHoy.ventasSinDetalle,
         totalCalle, clientes: clientes ? clientes.length : 0, clientesConDeuda,
-        totalProductos, productosDisponibles: totalProductos - productosAgotados,
+        totalProductos, productosConVariedades, totalVariedades, itemsVendibles,
+        productosDisponibles: totalProductos - productosAgotados,
         productosAgotados, valorInventarioCosto,
         pedidosPendientes, cajaSinCerrar,
         graficoSemana, graficoMeses
@@ -389,9 +411,9 @@ export default function DashboardInicio({
           icono={<Icono.CuentaCorriente size={16} />}
         />
         <Kpi
-          etiqueta="Productos cargados"
-          valor={metricas.totalProductos.toLocaleString('es-AR')}
-          detalle={`${metricas.productosDisponibles} disponibles · ${metricas.productosAgotados} agotados`}
+          etiqueta="Artículos cargados"
+          valor={metricas.itemsVendibles.toLocaleString('es-AR')}
+          detalle={`${metricas.totalProductos.toLocaleString('es-AR')} productos · ${metricas.totalVariedades.toLocaleString('es-AR')} variedades`}
           color={theme.mayorista}
           icono={<Icono.Inventario size={16} />}
         />
@@ -407,14 +429,44 @@ export default function DashboardInicio({
             <p style={{ margin: '2px 0 0 0', fontSize: '0.78rem', color: theme.subtext }}>Lo que hay cargado hoy en el sistema</p>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
             <span style={{ fontSize: '2.4rem', fontWeight: 800, color: theme.text, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', lineHeight: 1 }}>
-              {metricas.totalProductos.toLocaleString('es-AR')}
+              {metricas.itemsVendibles.toLocaleString('es-AR')}
             </span>
-            <span style={{ fontSize: '0.85rem', color: theme.subtext }}>artículos en catálogo</span>
+            <span style={{ fontSize: '0.85rem', color: theme.subtext }}>
+              artículos para vender
+              {metricas.totalVariedades > 0 && (
+                <> <strong style={{ color: theme.text }}>({metricas.totalVariedades.toLocaleString('es-AR')} son variedades)</strong></>
+              )}
+            </span>
           </div>
 
-          <div style={{ height: 10, borderRadius: 999, background: theme.innerBox, overflow: 'hidden', display: 'flex' }}>
+          {/* Desglose: por qué el total de artículos no es igual al de filas */}
+          <div style={{
+            display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 10,
+            padding: 12, borderRadius: 12, background: theme.innerBox
+          }}>
+            <div>
+              <div style={{ fontSize: '0.66rem', fontWeight: 800, letterSpacing: '0.05em', textTransform: 'uppercase', color: theme.subtext }}>Productos</div>
+              <div style={{ fontSize: '1.05rem', fontWeight: 800, color: theme.text, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}>
+                {metricas.totalProductos.toLocaleString('es-AR')}
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize: '0.66rem', fontWeight: 800, letterSpacing: '0.05em', textTransform: 'uppercase', color: theme.subtext }}>Con variedades</div>
+              <div style={{ fontSize: '1.05rem', fontWeight: 800, color: theme.text, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}>
+                {metricas.productosConVariedades.toLocaleString('es-AR')}
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize: '0.66rem', fontWeight: '800', letterSpacing: '0.05em', textTransform: 'uppercase', color: theme.subtext }}>Variedades</div>
+              <div style={{ fontSize: '1.05rem', fontWeight: 800, color: theme.text, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}>
+                {metricas.totalVariedades.toLocaleString('es-AR')}
+              </div>
+            </div>
+          </div>
+
+          <div style={{ height: 10, borderRadius: 999, background: theme.innerBox, overflow: 'hidden', display: 'flex' }} title="Disponibilidad de los productos cargados (un producto con variedades cuenta una sola vez)">
             <div style={{ width: `${metricas.totalProductos ? (metricas.productosDisponibles / metricas.totalProductos) * 100 : 0}%`, background: theme.success }} />
             <div style={{ width: `${metricas.totalProductos ? (metricas.productosAgotados / metricas.totalProductos) * 100 : 0}%`, background: theme.danger }} />
           </div>
@@ -429,6 +481,11 @@ export default function DashboardInicio({
               <strong style={{ color: theme.text }}>{metricas.productosAgotados.toLocaleString('es-AR')}</strong> agotados
             </span>
           </div>
+
+          <p style={{ margin: 0, fontSize: '0.74rem', color: theme.subtext }}>
+            Disponibilidad calculada sobre {metricas.totalProductos.toLocaleString('es-AR')} productos: un producto con
+            {' '}{metricas.productosConVariedades.toLocaleString('es-AR')} variedades cuenta una sola vez.
+          </p>
 
           <div style={{ borderTop: `1px solid ${theme.border}`, paddingTop: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             <span style={{ fontSize: '0.8rem', color: theme.subtext }}>Inversión cargada a costo</span>
