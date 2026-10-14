@@ -2,6 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import * as XLSX from 'xlsx';
 import { supabase } from '../lib/supabase';
+import { useToast } from './ui/Avisos';
 
 const CAMPOS_PRECIO = [
   { id: 'precio_costo', label: '💼 Costo' },
@@ -17,6 +18,8 @@ const MODOS_IDENTIFICACION = [
 ];
 
 export default function ActualizarPrecios({ isOpen, onClose, categorias, subcategorias, stock, setStock, darkMode }: any) {
+  const toast = useToast();
+  const { confirmar } = toast;
   const [archivoNombre, setArchivoNombre] = useState('');
   const [libroTrabajo, setLibroTrabajo] = useState<XLSX.WorkBook | null>(null);
   const [hojas, setHojas] = useState<string[]>([]);
@@ -85,7 +88,7 @@ export default function ActualizarPrecios({ isOpen, onClose, categorias, subcate
           seleccionarHoja(libro, libro.SheetNames[0]);
         }
       } catch (err) {
-        alert("Error al leer el archivo Excel.");
+        toast.error("Error al leer el archivo Excel.");
       }
     };
   };
@@ -144,15 +147,15 @@ export default function ActualizarPrecios({ isOpen, onClose, categorias, subcate
 
   const generarPreview = () => {
     if (!categoriaSeleccionada) {
-      alert("Primero elegí en qué categoría/subcategoría querés actualizar los precios.");
+      toast.avisar("Primero elegí en qué categoría/subcategoría querés actualizar los precios.", 'alerta');
       return;
     }
     if (colPrecio === '') {
-      alert("Elegí cuál es la columna de precio del Excel.");
+      toast.avisar("Elegí cuál es la columna de precio del Excel.", 'alerta');
       return;
     }
     if (colNombre === '' && colCodigo === '' && modoIdentificacion !== 'codigo') {
-      alert("Indicá la columna que identifica los productos (nombre o código).");
+      toast.avisar("Indicá la columna que identifica los productos (nombre o código).", 'alerta');
       return;
     }
 
@@ -240,7 +243,7 @@ export default function ActualizarPrecios({ isOpen, onClose, categorias, subcate
 
   const confirmarActualizacion = async () => {
     if (preview.length === 0) {
-      alert("No hay productos para actualizar.");
+      toast.error("No hay productos para actualizar.");
       return;
     }
     const aActualizar = preview.filter((p: any) => p.cambio);
@@ -264,7 +267,7 @@ export default function ActualizarPrecios({ isOpen, onClose, categorias, subcate
 
       setResultadoFinal(`✅ Se actualizaron ${actualizados} productos de la base de datos. (${sinCambios} ya estaban al día y se ignoraron${noMatcheados.length > 0 ? `, ${noMatcheados.length} no matchearon esta carpeta` : ''}).`);
     } catch (err: any) {
-      alert(`❌ ERROR AL ACTUALIZAR:\n${err.message}`);
+      toast.error(`Error al actualizar: ${err.message}`, 8000);
     } finally {
       setAplicando(false);
     }

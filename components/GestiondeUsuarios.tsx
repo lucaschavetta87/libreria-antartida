@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../app/supabase';
+import { useToast } from './ui/Avisos';
 
 interface GestionUsuariosProps {
   darkMode: boolean;
@@ -27,6 +28,8 @@ const SECCIONES_SISTEMA = [
 ];
 
 export default function GestionUsuarios({ darkMode, theme, isMobile }: GestionUsuariosProps) {
+  const toast = useToast();
+  const { confirmar } = toast;
   const [listaUsuarios, setListaUsuarios] = useState<any[]>([]);
   const [nuevoUsuario, setNuevoUsuario] = useState({ username: '', password: '', nombre: '' });
   const [permisosSeleccionados, setPermisosSeleccionados] = useState<string[]>(['inicio']);
@@ -46,7 +49,7 @@ export default function GestionUsuarios({ darkMode, theme, isMobile }: GestionUs
   const manejarCrearUsuario = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!nuevoUsuario.username || !nuevoUsuario.password || !nuevoUsuario.nombre) {
-      return alert("Por favor, completa todos los campos del empleado.");
+      return toast.avisar("Por favor, completa todos los campos del empleado.", 'alerta');
     }
 
     try {
@@ -60,22 +63,22 @@ export default function GestionUsuarios({ darkMode, theme, isMobile }: GestionUs
       const { error } = await supabase.from('usuarios_sistema').insert([payload]);
       
       if (error) {
-        if (error.code === '23505') return alert("⚠️ El nombre de usuario ya existe.");
+        if (error.code === '23505') return toast.avisar("El nombre de usuario ya existe.", 'alerta');
         throw error;
       }
 
-      alert(`🎉 Usuario "${payload.nombre}" creado con éxito.`);
+      toast.exito(`Usuario "${payload.nombre}" creado con éxito.`);
       setNuevoUsuario({ username: '', password: '', nombre: '' });
       setPermisosSeleccionados(['inicio']);
       await cargarUsuarios();
     } catch (err: any) {
-      alert("Error al registrar: " + err.message);
+      toast.error("Error al registrar: " + err.message);
     }
   };
 
   const eliminarUsuario = async (username: string) => {
-    if (username === 'admin') return alert("No se puede eliminar el perfil maestro.");
-    if (!window.confirm(`¿Seguro que deseas dar de baja al usuario ${username}?`)) return;
+    if (username === 'admin') return toast.avisar("No se puede eliminar el perfil maestro.", 'alerta');
+    if (!(await confirmar({ titulo: 'Dar de baja al usuario', mensaje: `¿Seguro que querés dar de baja a ${username}? Perderá el acceso al sistema.`, textoOk: 'Dar de baja', peligro: true }))) return;
 
     const { error } = await supabase.from('usuarios_sistema').delete().eq('username', username);
     if (!error) {

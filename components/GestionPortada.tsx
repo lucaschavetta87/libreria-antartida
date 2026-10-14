@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '../app/supabase';
 import { prepararImagenHero, subirArchivoAStorage, medirImagen, recomendacionesImagenHero } from '../lib/imageUtils';
+import { useToast } from './ui/Avisos';
 
 interface GestionPortadaProps {
   darkMode: boolean;
@@ -48,6 +49,8 @@ const TIPOS: { id: TipoPortada; label: string; icon: string; descripcion: string
 const CANTIDAD_POR_PAGINA = 12;
 
 export default function GestionPortada({ darkMode, theme, isMobile }: GestionPortadaProps) {
+  const toast = useToast();
+  const { confirmar } = toast;
   const [pestanaActiva, setPestanaActiva] = useState<TipoPortada>('novedad');
   const [filas, setFilas] = useState<FilaPortada[]>([]);
   const [stock, setStock] = useState<ProductoPortada[]>([]);
@@ -156,7 +159,7 @@ export default function GestionPortada({ darkMode, theme, isMobile }: GestionPor
 
   const quitarFila = async (fila: FilaPortada) => {
     const nombre = fila.stock_id ? stockPorId.get(fila.stock_id)?.nombre : 'el ítem';
-    if (!window.confirm(`¿Quitar "${nombre}" de la lista?`)) return;
+    if (!(await confirmar({ titulo: 'Quitar de la portada', mensaje: `¿Quitar "${nombre}" de la lista?`, textoOk: 'Quitar', peligro: true }))) return;
 
     const { error } = await supabase.from('portada_web').delete().eq('id', fila.id);
     if (error) {
@@ -430,8 +433,8 @@ export default function GestionPortada({ darkMode, theme, isMobile }: GestionPor
                       </button>
                       <button
                         type="button"
-                        onClick={() => {
-                          if (window.confirm('¿Eliminar esta imagen del carrusel?')) quitarFila(fila);
+                        onClick={async () => {
+                          if (await confirmar({ titulo: 'Quitar imagen', mensaje: '¿Eliminar esta imagen del carrusel?', textoOk: 'Quitar', peligro: true })) quitarFila(fila);
                         }}
                         style={{ ...btnSecundario, backgroundColor: 'transparent', borderColor: '#ef4444', color: '#ef4444' }}
                       >

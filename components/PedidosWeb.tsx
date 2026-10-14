@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../app/supabase';
+import { useToast } from './ui/Avisos';
 
 interface PedidoWebProps {
   darkMode?: boolean;
@@ -121,6 +122,8 @@ const guardarVendedorLocal = (nombre: string) => {
 };
 
 export default function PedidosWeb({ darkMode = true, vendedorActual = '', vendedores = [] }: PedidoWebProps) {
+  const toast = useToast();
+  const { confirmar } = toast;
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [cargando, setCargando] = useState(true);
   const [filtroEstado, setFiltroEstado] = useState<string>('todos');
@@ -200,7 +203,7 @@ export default function PedidosWeb({ darkMode = true, vendedorActual = '', vende
         { event: 'INSERT', schema: 'public', table: 'pedidos_web' },
         (payload) => {
           setPedidos((prevPedidos) => [payload.new as Pedido, ...prevPedidos]);
-          alert(`¡Nuevo pedido recibido de ${payload.new.nombre}!`);
+          toast.exito(`¡Nuevo pedido recibido de ${payload.new.nombre}!`);
         }
       )
       .subscribe();
@@ -234,8 +237,8 @@ export default function PedidosWeb({ darkMode = true, vendedorActual = '', vende
     setHayCambios(false);
   };
 
-  const cerrarDetalle = () => {
-    if (hayCambios && !window.confirm('Tenés cambios sin guardar en este pedido.\n\n¿Cerrar y descartarlos?')) return;
+  const cerrarDetalle = async () => {
+    if (hayCambios && !(await confirmar({ titulo: 'Descartar cambios', mensaje: 'Tenés cambios sin guardar en este pedido. ¿Cerrar y descartarlos?', textoOk: 'Descartar', peligro: true }))) return;
     setPedidoSeleccionado(null);
     setItemsTrabajo([]);
     setVendedorTrabajo('');
@@ -282,7 +285,7 @@ export default function PedidosWeb({ darkMode = true, vendedorActual = '', vende
   const guardarProgreso = async (forzarPreparando = false) => {
     if (!pedidoSeleccionado) return;
     const vend = vendedorTrabajo.trim();
-    if (forzarPreparando && !vend) return alert('Escribí el nombre del vendedor que va a preparar el pedido.');
+    if (forzarPreparando && !vend) return toast.avisar('Escribí el nombre del vendedor que va a preparar el pedido.', 'alerta');
     setGuardando(true);
     try {
       const limpios = itemsTrabajo.map(limpiarItem);
@@ -299,7 +302,7 @@ export default function PedidosWeb({ darkMode = true, vendedorActual = '', vende
       setHayCambios(false);
       if (vendedor) guardarVendedorLocal(vendedor);
     } catch (err: any) {
-      alert('Error al guardar el progreso del pedido: ' + err.message);
+      toast.error('Error al guardar el progreso del pedido: ' + err.message);
     } finally {
       setGuardando(false);
     }
@@ -332,18 +335,18 @@ export default function PedidosWeb({ darkMode = true, vendedorActual = '', vende
     const totalFinal = calcularTotalFinal(pedidoACompletar.total, itemsFinales);
 
     if (enviados.length === 0) {
-      return alert('No hay ningún producto para enviar. Si no se puede entregar nada, cancelá el pedido en lugar de completarlo.');
+      return toast.avisar('No hay ningún producto para enviar. Si no se puede entregar nada, cancelá el pedido en lugar de completarlo.', 'alerta');
     }
 
     const vendedorFinal = vendedorCobro.trim();
-    if (!vendedorFinal) return alert('Indicá qué vendedor preparó este pedido.');
+    if (!vendedorFinal) return toast.avisar('Indicá qué vendedor preparó este pedido.', 'alerta');
 
     // Validación ANTES de tocar la base de datos
     let clienteObj: any = null;
     if (metodoPagoSeleccionado === 'Cuenta Corriente') {
-      if (!clienteIdSeleccionado) return alert('Por favor seleccioná una cuenta corriente / cliente válido.');
+      if (!clienteIdSeleccionado) return toast.avisar('Por favor seleccioná una cuenta corriente / cliente válido.', 'alerta');
       clienteObj = clientesLista.find(c => String(c.id) === String(clienteIdSeleccionado));
-      if (!clienteObj) return alert('No se encontró el cliente seleccionado.');
+      if (!clienteObj) return toast.avisar('No se encontró el cliente seleccionado.', 'alerta');
     }
 
     setProcesandoPago(true);
@@ -442,14 +445,15 @@ export default function PedidosWeb({ darkMode = true, vendedorActual = '', vende
 
       setMostrarModalPago(false);
       setPedidoACompletar(null);
-      alert(
-        '✅ Pedido completado y registrado en Cierre de Caja / Cuenta Corriente por $' + totalFinal.toLocaleString('es-AR') + '.' +
-        (marcados > 0 ? `\n🚫 ${marcados} producto${marcados > 1 ? 's' : ''} marcado${marcados > 1 ? 's' : ''} como SIN STOCK.` : '') +
-        avisoSinStock
+      toast.exito(
+        `Pedido completado y registrado en Cierre de Caja / Cuenta Corriente por $${totalFinal.toLocaleString('es-AR')}.` +
+        (marcados > 0 ? ` ${marcados} producto${marcados > 1 ? 's' : ''} marcado${marcados > 1 ? 's' : ''} como SIN STOCK.` : '') +
+        avisoSinStock.replace(/\n+/g, ' '),
+        9000
       );
       cargarPedidosYClientes();
     } catch (err: any) {
-      alert('Error al procesar el pago del pedido: ' + err.message);
+      toast.error('Error al procesar el pago del pedido: ' + err.message);
     } finally {
       setProcesandoPago(false);
     }
@@ -464,7 +468,7 @@ export default function PedidosWeb({ darkMode = true, vendedorActual = '', vende
       }
     }
 
-    if (nuevoEstado === 'cancelado' && !window.confirm('¿Cancelar este pedido? No se registra ninguna venta ni se descuenta nada.')) return;
+    if (nuevoEstado === 'cancelado' && !(await confirmar({ titulo: 'Cancelar pedido', mensaje: '¿Cancelar este pedido? No se registra ninguna venta ni se descuenta nada.', textoOk: 'Sí, cancelar', peligro: true }))) return;
 
     try {
       // Si es el pedido abierto, se guardan junto con el nuevo estado los cambios pendientes y el vendedor
@@ -484,12 +488,12 @@ export default function PedidosWeb({ darkMode = true, vendedorActual = '', vende
         setHayCambios(false);
       }
     } catch (err: any) {
-      alert("Error al actualizar estado: " + err.message);
+      toast.error("Error al actualizar estado: " + err.message);
     }
   };
 
   const eliminarPedido = async (id: number) => {
-    if (!window.confirm("¿Estás seguro de eliminar este pedido del registro?")) return;
+    if (!(await confirmar({ titulo: 'Eliminar pedido', mensaje: "¿Estás seguro de eliminar este pedido del registro?", textoOk: "Eliminar", peligro: true }))) return;
     try {
       const { error } = await supabase.from('pedidos_web').delete().eq('id', id);
       if (error) throw error;
@@ -498,7 +502,7 @@ export default function PedidosWeb({ darkMode = true, vendedorActual = '', vende
       setItemsTrabajo([]);
       setHayCambios(false);
     } catch (err: any) {
-      alert("Error al eliminar: " + err.message);
+      toast.error("Error al eliminar: " + err.message);
     }
   };
 
@@ -610,7 +614,7 @@ export default function PedidosWeb({ darkMode = true, vendedorActual = '', vende
       doc.save(`Pedido_${pedido.id}_${pedido.nombre.replace(/\s+/g, '_')}.pdf`);
     } catch (error) {
       console.error(error);
-      alert("Error al generar el PDF.");
+      toast.error("Error al generar el PDF.");
     }
   };
 

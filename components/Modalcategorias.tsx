@@ -1,7 +1,10 @@
 "use client";
 import React, { useEffect, useRef, useState } from 'react';
+import { useToast } from './ui/Avisos';
 
 export default function ModalCategorias({ categorias, darkMode, onClose, crearCategoria, actualizarCategoria, eliminarCategoria }: any) {
+  const toast = useToast();
+  const { confirmar } = toast;
   const [nombreNueva, setNombreNueva] = useState('');
   const [imagenNuevaUrl, setImagenNuevaUrl] = useState('');
   const [imagenNuevaArchivo, setImagenNuevaArchivo] = useState<File | null>(null);
@@ -102,7 +105,7 @@ export default function ModalCategorias({ categorias, darkMode, onClose, crearCa
   };
 
   const handleEliminar = async (id: string) => {
-    if (!window.confirm('¿Seguro que querés eliminar esta categoría?')) return;
+    if (!(await confirmar({ titulo: 'Eliminar categoría', mensaje: '¿Seguro que querés eliminar esta categoría?', textoOk: 'Eliminar', peligro: true }))) return;
     setBorrandoId(id);
     await eliminarCategoria(id);
     setBorrandoId(null);

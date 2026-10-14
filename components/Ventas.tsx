@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { supabase } from '../app/supabase'; 
+import { useToast } from './ui/Avisos';
 
 interface VentasProps {
   stock: any[];
@@ -12,6 +13,8 @@ interface VentasProps {
 }
 
 export default function Ventas({ stock, setStock, ventas, setVentas, darkMode = true }: VentasProps) {
+  const toast = useToast();
+  const { confirmar } = toast;
   const [busqueda, setBusqueda] = useState('');
   const [sugerencias, setSugerencias] = useState<any[]>([]);
   const [carrito, setCarrito] = useState<any[]>([]);
@@ -129,7 +132,7 @@ export default function Ventas({ stock, setStock, ventas, setVentas, darkMode = 
   const aplicarAjustePorcentualMasivo = (tipo: 'recargo' | 'descuento') => {
     const porcentaje = Number(porcentajeAjuste);
     if (isNaN(porcentaje) || porcentaje <= 0) {
-      return alert("Por favor ingresá un número de porcentaje válido y mayor a 0.");
+      return toast.avisar("Por favor ingresá un número de porcentaje válido y mayor a 0.", 'alerta');
     }
 
     const factor = tipo === 'recargo' ? 1 + porcentaje / 100 : 1 - porcentaje / 100;
@@ -190,7 +193,7 @@ export default function Ventas({ stock, setStock, ventas, setVentas, darkMode = 
     const idElegido = variedadId || variedadElegidaPorProducto[producto.id] || '';
     const variedadObj = variedades.find((v: any) => String(v.id) === String(idElegido)) || null;
     if (variedades.length > 0 && !variedadObj) {
-      alert('Elegí una variedad antes de agregar el producto al carrito.');
+      toast.avisar('Elegí una variedad antes de agregar el producto al carrito.', 'alerta');
       return;
     }
 
@@ -302,7 +305,7 @@ export default function Ventas({ stock, setStock, ventas, setVentas, darkMode = 
       setDescuento(0);
       setMetodoPago('Efectivo');
       setListaSeleccionada('precio_minorista');
-    } catch (e: any) { alert("Error al registrar venta minorista: " + e.message); }
+    } catch (e: any) { toast.error("Error al registrar venta minorista: " + e.message); }
   };
 
   return (

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { supabase } from '../app/supabase'; 
+import { useToast } from './ui/Avisos';
 
 interface VentasMayoristasProps {
   stock: any[];
@@ -12,6 +13,8 @@ interface VentasMayoristasProps {
 }
 
 export default function VentasMayoristas({ stock, setStock, ventas, setVentas, darkMode = true }: VentasMayoristasProps) {
+  const toast = useToast();
+  const { confirmar } = toast;
   const [busqueda, setBusqueda] = useState('');
   const [sugerencias, setSugerencias] = useState<any[]>([]);
   const [carrito, setCarrito] = useState<any[]>([]);
@@ -140,7 +143,7 @@ export default function VentasMayoristas({ stock, setStock, ventas, setVentas, d
   const aplicarAjustePorcentualMasivo = (tipo: 'recargo' | 'descuento') => {
     const porcentaje = Number(porcentajeAjuste);
     if (isNaN(porcentaje) || porcentaje <= 0) {
-      return alert("Por favor ingresá un número de porcentaje válido y mayor a 0.");
+      return toast.avisar("Por favor ingresá un número de porcentaje válido y mayor a 0.", 'alerta');
     }
 
     const factor = tipo === 'recargo' ? 1 + porcentaje / 100 : 1 - porcentaje / 100;
@@ -222,7 +225,7 @@ export default function VentasMayoristas({ stock, setStock, ventas, setVentas, d
     const idElegido = variedadId || variedadElegidaPorProducto[producto.id] || '';
     const variedadObj = variedades.find((v: any) => String(v.id) === String(idElegido)) || null;
     if (variedades.length > 0 && !variedadObj) {
-      alert('Elegí una variedad antes de agregar el producto al remito.');
+      toast.avisar('Elegí una variedad antes de agregar el producto al remito.', 'alerta');
       return;
     }
 
@@ -314,7 +317,7 @@ export default function VentasMayoristas({ stock, setStock, ventas, setVentas, d
 
   const finalizarVenta = async () => {
     if (carrito.length === 0) return;
-    if (!clienteSeleccionado) return alert("⚠️ Error: Las ventas mayoristas exigen vincular una ficha de cliente obligatoriamente.");
+    if (!clienteSeleccionado) return toast.avisar("Las ventas mayoristas exigen vincular una ficha de cliente obligatoriamente.", 'alerta');
 
     try {
       const finalTotal = totalFinal();
@@ -350,7 +353,7 @@ export default function VentasMayoristas({ stock, setStock, ventas, setVentas, d
       setMetodoPago('Transferencia');
       if (buscadorRef.current) buscadorRef.current.focus();
     } catch (error: any) {
-      alert("Error al procesar remito: " + error.message);
+      toast.error("Error al procesar remito: " + error.message);
     }
   };
 

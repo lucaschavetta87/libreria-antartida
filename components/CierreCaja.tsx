@@ -2,12 +2,15 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../app/supabase';
+import { useToast } from './ui/Avisos';
 
 interface CierreCajaProps {
   darkMode?: boolean;
 }
 
 export default function CierreCaja({ darkMode = true }: CierreCajaProps) {
+  const toast = useToast();
+  const { confirmar } = toast;
   const [ventasDia, setVentasDia] = useState<any[]>([]);
   const [preciosStockMap, setPreciosStockMap] = useState<Map<string, { costo: number; venta: number }>>(new Map());
   const [cargando, setCargando] = useState(true);
@@ -216,7 +219,7 @@ export default function CierreCaja({ darkMode = true }: CierreCajaProps) {
 
   const ejecutarCierreDeCaja = async () => {
     if (ventasDia.length === 0) {
-      return alert("No existen operaciones registradas en la jornada actual para procesar un cierre fiscal.");
+      return toast.avisar("No existen operaciones registradas en la jornada actual para procesar un cierre fiscal.", 'alerta');
     }
 
     const mensajeConfirmacion = 
@@ -225,7 +228,7 @@ export default function CierreCaja({ darkMode = true }: CierreCajaProps) {
       `• Transferencias esperadas en Banco: $${(balances.desglose.minorista.transferencia + balances.desglose.mayorista.transferencia).toLocaleString('es-AR')}\n\n` +
       `¿Desea asentar el cierre de caja y archivar el historial en la base de datos?`;
 
-    if (!window.confirm(mensajeConfirmacion)) return;
+    if (!(await confirmar({ titulo: 'Cerrar la caja', mensaje: mensajeConfirmacion.split('\n').filter(Boolean).slice(-1)[0], textoOk: 'Sí, cerrar caja' }))) return;
 
     try {
       const nuevoCierre = {
@@ -242,11 +245,11 @@ export default function CierreCaja({ darkMode = true }: CierreCajaProps) {
       const { error } = await supabase.from('cierres_caja').insert([nuevoCierre]);
       if (error) throw error;
 
-      alert("🚀 Cierre de caja guardado con éxito. Los valores han sido archivados.");
+      toast.exito("Cierre de caja guardado con éxito. Los valores han sido archivados.");
       setVentasDia([]);
       await cargarHistorialCierres();
     } catch (err: any) {
-      alert("Error crítico al procesar cierre: " + err.message);
+      toast.error("Error crítico al procesar cierre: " + err.message);
     }
   };
 
