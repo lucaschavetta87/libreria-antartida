@@ -229,7 +229,7 @@ export default function ClientesCC({ darkMode = true }: { darkMode?: boolean }) 
         <div style={{ ...cardStyle, flex: 2 }}>
           <h2 style={{ color: theme.text, marginBottom: '20px', fontSize: '1.4rem', fontWeight: '800' }}>👤 Registrar Cliente</h2>
           
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: '15px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: '15px' }}>
             <div>
               <label style={{ color: theme.subtext, fontSize: '0.8rem', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>NOMBRE COMPLETO</label>
               <input style={{ ...inputStyle, marginBottom: 0 }} value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Ej: Juan Pérez" />

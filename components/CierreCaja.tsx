@@ -265,7 +265,7 @@ export default function CierreCaja({ darkMode = true }: CierreCajaProps) {
         Ganancia Neta Calculada (Venta - Costo Stock): +${Math.max(0, datos.total - datos.costo).toLocaleString('es-AR')}
       </div>
       <hr style={{ border: 'none', borderTop: `1px solid ${theme.divider}`, margin: '4px 0' }} />
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(4, 1fr)', gap: '10px', fontSize: '0.9rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '10px', fontSize: '0.9rem' }}>
         <div>💵 Ef: <strong>${datos.efectivo.toLocaleString('es-AR')}</strong></div>
         <div>📲 Trans: <strong>${datos.transferencia.toLocaleString('es-AR')}</strong></div>
         <div>💳 Tarj: <strong>${datos.tarjeta.toLocaleString('es-AR')}</strong></div>
@@ -380,7 +380,7 @@ export default function CierreCaja({ darkMode = true }: CierreCajaProps) {
       ) : (
         <>
           {/* TOTALIZADORES */}
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '25px', width: '100%' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '25px', width: '100%' }}>
             <div style={{ ...cardStyle, borderLeft: '6px solid #3b82f6' }}>
               <h4 style={{ color: theme.subtext, margin: 0, fontSize: '0.85rem', textTransform: 'uppercase', fontWeight: '800' }}>Caja Bruta General Vendida</h4>
               <div style={{ fontSize: '2.5rem', fontWeight: '900', color: theme.text, marginTop: '8px', fontFamily: 'monospace' }}>
