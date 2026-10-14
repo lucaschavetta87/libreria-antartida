@@ -272,9 +272,15 @@ export default function DashboardInicio({
 
   const pesos = (valor: number) => `$${Number(valor || 0).toLocaleString('es-AR')}`;
 
-  const tarjeta = (extra: React.CSSProperties = {}): React.CSSProperties => ({
+  // Los bordes se escriben lado por lado (sin el atajo `border`): mezclar el atajo
+// con una propiedad suelta como `borderTop` hace que React 19 avise al actualizar
+// durante el re-render, y el borde puede quedar visualmente mal.
+const tarjeta = (extra: React.CSSProperties = {}): React.CSSProperties => ({
     backgroundColor: theme.card,
-    border: `1px solid ${theme.border}`,
+    borderTopWidth: 1, borderTopStyle: 'solid', borderTopColor: theme.border,
+    borderRightWidth: 1, borderRightStyle: 'solid', borderRightColor: theme.border,
+    borderBottomWidth: 1, borderBottomStyle: 'solid', borderBottomColor: theme.border,
+    borderLeftWidth: 1, borderLeftStyle: 'solid', borderLeftColor: theme.border,
     borderRadius: 18,
     padding: 18,
     boxShadow: theme.shadowCard,
@@ -284,7 +290,7 @@ export default function DashboardInicio({
   const Kpi = ({
     etiqueta, valor, detalle, color, icono
   }: { etiqueta: string; valor: string; detalle?: string; color: string; icono?: React.ReactNode }) => (
-    <div style={tarjeta({ display: 'flex', flexDirection: 'column', gap: 6, borderTop: `3px solid ${color}` })}>
+    <div style={tarjeta({ display: 'flex', flexDirection: 'column', gap: 6, borderTopWidth: 3, borderTopColor: color })}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         {icono && <span style={{ color }}>{icono}</span>}
         <span style={{ fontSize: '0.7rem', fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', color: theme.subtext }}>{etiqueta}</span>

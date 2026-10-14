@@ -43,15 +43,21 @@ export default function CierreCaja({ darkMode = true }: CierreCajaProps) {
     divider: darkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'
   };
 
-  const cardStyle: React.CSSProperties = {
+  // Los bordes van por lado (y no con el atajo `border`) para poder，突出 un borde
+// izquierdo de color sin mezclar atajos con propiedades sueltas: React 19 avisa
+// cuando en un re-render se actualiza `border` con `borderLeft` ya seteado.
+const cardStyle = (bordeIzquierdo?: string): React.CSSProperties => ({
     backgroundColor: theme.card,
     padding: isMobile ? '22px 16px' : '28px',
     borderRadius: '24px',
-    border: `1px solid ${theme.border}`,
+    borderTop: `1px solid ${theme.border}`,
+    borderRight: `1px solid ${theme.border}`,
+    borderBottom: `1px solid ${theme.border}`,
+    borderLeft: bordeIzquierdo ? `6px solid ${bordeIzquierdo}` : `1px solid ${theme.border}`,
     boxShadow: darkMode ? '0 10px 25px -5px rgba(0,0,0,0.3)' : '0 4px 20px rgba(0,0,0,0.05)',
     width: '100%',
     transition: 'all 0.3s'
-  };
+  });
 
   const hoyStr = useMemo(() => new Date().toLocaleDateString('es-AR'), []);
 
@@ -313,7 +319,7 @@ export default function CierreCaja({ darkMode = true }: CierreCajaProps) {
       </div>
 
       {verHistorialCierres ? (
-        <div style={cardStyle}>
+        <div style={cardStyle()}>
           <h3 style={{ color: '#6366f1', margin: '0 0 20px 0', fontWeight: '800', fontSize: '1.3rem' }}>📜 Historial de Balances Archivados</h3>
           
           {cierreSeleccionado ? (
@@ -381,14 +387,14 @@ export default function CierreCaja({ darkMode = true }: CierreCajaProps) {
         <>
           {/* TOTALIZADORES */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '25px', width: '100%' }}>
-            <div style={{ ...cardStyle, borderLeft: '6px solid #3b82f6' }}>
+            <div style={cardStyle('#3b82f6')}>
               <h4 style={{ color: theme.subtext, margin: 0, fontSize: '0.85rem', textTransform: 'uppercase', fontWeight: '800' }}>Caja Bruta General Vendida</h4>
               <div style={{ fontSize: '2.5rem', fontWeight: '900', color: theme.text, marginTop: '8px', fontFamily: 'monospace' }}>
                 ${balances.totalGeneral.toLocaleString('es-AR')}
               </div>
             </div>
 
-            <div style={{ ...cardStyle, borderLeft: '6px solid #10b981', backgroundColor: darkMode ? '#13231c' : '#f0fdf4' }}>
+            <div style={{ ...cardStyle('#10b981'), backgroundColor: darkMode ? '#13231c' : '#f0fdf4' }}>
               <h4 style={{ color: darkMode ? '#a7f3d0' : '#065f46', margin: 0, fontSize: '0.85rem', textTransform: 'uppercase', fontWeight: '800' }}>Ganancia Neta Consolidada (Menos Costos)</h4>
               <div style={{ fontSize: '2.5rem', fontWeight: '900', color: '#10b981', marginTop: '8px', fontFamily: 'monospace' }}>
                 ${balances.gananciaNetaGeneral.toLocaleString('es-AR')}
@@ -397,7 +403,7 @@ export default function CierreCaja({ darkMode = true }: CierreCajaProps) {
           </div>
 
           {/* DESGLOSE DISCRIMINADO */}
-          <div style={cardStyle}>
+          <div style={cardStyle()}>
             <h3 style={{ color: theme.text, fontSize: '1.2rem', fontWeight: '800', marginBottom: '20px' }}>🛒 Rendimiento Comercial de la Caja Activa</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               {renderFilaDesglose("Fila Ventas Minoristas", balances.desglose.minorista, '#3b82f6')}
@@ -420,7 +426,7 @@ export default function CierreCaja({ darkMode = true }: CierreCajaProps) {
           </div>
 
           {/* AUDITORÍA DE TICKETS DEL DÍA */}
-          <div style={cardStyle}>
+          <div style={cardStyle()}>
             <h3 style={{ color: theme.text, fontSize: '1.1rem', fontWeight: '800', marginBottom: '15px' }}>📋 Operaciones Recientes Sincronizadas</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {ventasDia.length === 0 ? (
