@@ -17,6 +17,7 @@ type Props = {
   generandoExcel?: boolean;
   onPdf: () => void;
   onExcel: () => void;
+  menuStyle?: React.CSSProperties;
 };
 
 // Botón "Catálogo Mayorista Completo": a diferencia del menú por carpeta,
@@ -24,7 +25,7 @@ type Props = {
 // agrupado por categoría / subcategoría / sub-subcategoría.
 export default function MenuCatalogoCompleto({
   darkMode, btnBaseStyle, totalProductos, opciones, setOpciones,
-  generandoPdf, generandoExcel, onPdf, onExcel
+  generandoPdf, generandoExcel, onPdf, onExcel, menuStyle
 }: Props) {
   const [abierto, setAbierto] = useState(false);
   const [hover, setHover] = useState<string | null>(null);
@@ -108,7 +109,8 @@ export default function MenuCatalogoCompleto({
           position: 'absolute', top: 'calc(100% + 8px)', left: 0, zIndex: 4000,
           minWidth: '330px', maxWidth: '440px',
           backgroundColor: t.card, border: `1px solid ${t.border}`, borderRadius: '16px',
-          boxShadow: '0 20px 45px rgba(0,0,0,0.35)', padding: '6px 6px 10px', textAlign: 'left'
+          boxShadow: '0 20px 45px rgba(0,0,0,0.35)', padding: '6px 6px 10px', textAlign: 'left',
+          ...(menuStyle || {})
         }}>
           <div style={{ fontSize: '0.68rem', fontWeight: 800, color: t.subtext, textTransform: 'uppercase', letterSpacing: '0.05em', padding: '10px 8px 4px' }}>
             Opciones del listado

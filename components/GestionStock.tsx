@@ -1402,6 +1402,10 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
   const cardStyle: React.CSSProperties = { width: '100%', padding: '0' };
   const inputStyle: React.CSSProperties = { padding: '12px 16px', borderRadius: '10px', border: `1px solid ${darkMode ? '#334155' : '#cbd5e1'}`, backgroundColor: theme.input, color: theme.text, outline: 'none', fontSize: '15px', width: '100%' };
   const btnBaseStyle: React.CSSProperties = { padding: '12px 20px', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', width: isMobile ? '100%' : 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' };
+  // Los menús desplegables ocupan la fila completa en el celular para que su
+  // panel no se salga de la pantalla.
+  const btnMenuStyle: React.CSSProperties = isMobile ? { ...btnBaseStyle, gridColumn: '1 / -1' } : btnBaseStyle;
+  const menuStyleMovil: React.CSSProperties | undefined = isMobile ? { left: 0, right: 0, minWidth: 0, maxWidth: 'none' } : undefined;
   const actionBtnStyle = (color: string): React.CSSProperties => ({ background: darkMode ? 'rgba(255,255,255,0.04)' : '#f1f5f9', border: `1px solid ${color}`, borderRadius: '10px', color: color, cursor: 'pointer', padding: '8px 12px', fontSize: '14px' });
 
   const getBase64ImageFromUrl = async (imageUrl: string): Promise<string | null> => {
@@ -2419,6 +2423,7 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
 
   // Se calcula acá (no antes) porque construirCatalogoCompleto usa categoriasOrdenadas.
   const previewCatalogoCompleto = construirCatalogoCompleto(opcionesCatalogo);
+  const stockSinStock = useMemo(() => (stock || []).filter((p: any) => p.sin_stock).length, [stock]);
 
   const ejecutarMoverSeleccionados = () => {
     if (!destinoMover) return;
@@ -2492,25 +2497,49 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
 
       <ActualizarPrecios isOpen={mostrarModalActualizarPrecios} onClose={() => setMostrarModalActualizarPrecios(false)} categorias={categorias} subcategorias={subcategoriasDB} stock={stock} setStock={setStock} darkMode={darkMode} />
 
+      {/* El título de la sección ya está en la barra superior: acá va el contexto útil */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
-        <div>
-          <h1 style={{ margin: 0, fontSize: isMobile ? '1.4rem' : '1.8rem', fontWeight: 800, color: theme.text }}>📦 Gestión de Stock</h1>
-          <p style={{ margin: '4px 0 0 0', fontSize: '0.88rem', color: theme.subtext }}>{stock?.length || 0} productos cargados</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          <span style={{ fontSize: '0.85rem', color: theme.subtext }}>
+            <strong style={{ color: theme.text }}>{stock?.length || 0}</strong> productos cargados
+          </span>
+          {stockSinStock > 0 && (
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 9px', borderRadius: 999,
+              fontSize: '0.7rem', fontWeight: 800, color: '#dc2626', background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.35)'
+            }}>
+              🚫 {stockSinStock} sin stock
+            </span>
+          )}
         </div>
       </div>
 
       <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-        {isMobile && <button onClick={() => setPanelAbierto(v => !v)} style={{ ...btnBaseStyle, width: 'auto', backgroundColor: '#334155', padding: '12px 14px' }}>📁</button>}
-        <input type="text" placeholder="🔍 Buscar por nombre, código o variedad..." value={busqueda} onChange={e => { setBusqueda(e.target.value); setPaginaActual(1); }} style={{ ...inputStyle, borderRadius: '999px', border: '2px solid #3b82f6', paddingLeft: '22px' }} />
+        {isMobile && <button onClick={() => setPanelAbierto(v => !v)} aria-label="Ver carpetas" style={{ ...btnBaseStyle, width: 'auto', backgroundColor: '#334155', padding: '12px 14px', flexShrink: 0 }}>📁</button>}
+        <input
+          type="text"
+          placeholder="Buscar por nombre, código o variedad..."
+          value={busqueda}
+          onChange={e => { setBusqueda(e.target.value); setPaginaActual(1); }}
+          style={{ ...inputStyle, borderRadius: '999px', paddingLeft: '22px' }}
+        />
       </div>
 
-      <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
-        <button onClick={abrirFormularioNuevo} style={{ ...btnBaseStyle, backgroundColor: '#3b82f6' }}>➕ Agregar producto</button>
-        <button onClick={() => setMostrarModalImportar(true)} style={{ ...btnBaseStyle, backgroundColor: '#059669' }}>📥 Importar Excel (Mapeo)</button>
-        <button onClick={() => setMostrarModalActualizarPrecios(true)} style={{ ...btnBaseStyle, backgroundColor: '#f59e0b' }}>💰 Actualizar Precios con Excel</button>
+      {/* En celular las acciones se agrupan en una grilla de dos columnas:
+          antes cada botón ocupaba una fila y tapaban la lista. */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(auto-fit, minmax(190px, auto))',
+        gap: '10px',
+        justifyContent: isMobile ? 'stretch' : 'start'
+      }}>
+        <button onClick={abrirFormularioNuevo} style={{ ...btnBaseStyle, background: 'linear-gradient(180deg,#3b82f6 0%,#2563eb 100%)' }}>➕ Agregar producto</button>
+        <button onClick={() => setMostrarModalImportar(true)} style={{ ...btnBaseStyle, background: 'linear-gradient(180deg,#10b981 0%,#059669 100%)' }}>📥 Importar Excel</button>
+        <button onClick={() => setMostrarModalActualizarPrecios(true)} style={{ ...btnBaseStyle, background: 'linear-gradient(180deg,#f59e0b 0%,#d97706 100%)' }}>💰 Actualizar Precios</button>
         <MenuBotonCategorias
           darkMode={darkMode}
-          btnBaseStyle={btnBaseStyle}
+          btnBaseStyle={btnMenuStyle}
+          menuStyle={menuStyleMovil}
           label="Imprimir códigos de barra"
           icono="🖨️"
           colorBoton="#7c3aed"
@@ -2528,8 +2557,9 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
         />
         <MenuBotonCategorias
           darkMode={darkMode}
-          btnBaseStyle={btnBaseStyle}
-          label="PDF CATÁLOGO MAYORISTA"
+          btnBaseStyle={btnMenuStyle}
+          menuStyle={menuStyleMovil}
+          label="Catálogo Mayorista"
           icono="📄"
           colorBoton="#ef4444"
           categorias={categoriasOrdenadas}
@@ -2544,7 +2574,8 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
         />
         <MenuCatalogoCompleto
           darkMode={darkMode}
-          btnBaseStyle={btnBaseStyle}
+          btnBaseStyle={btnMenuStyle}
+          menuStyle={menuStyleMovil}
           totalProductos={totalFilasCatalogo(previewCatalogoCompleto)}
           opciones={opcionesCatalogo}
           setOpciones={setOpcionesCatalogo}

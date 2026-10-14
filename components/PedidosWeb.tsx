@@ -820,9 +820,7 @@ export default function PedidosWeb({ darkMode = true, vendedorActual = '', vende
       </datalist>
       
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '20px', justifyContent: 'space-between', alignItems: 'center', backgroundColor: theme.card, padding: '24px', borderRadius: '20px', border: `1px solid ${theme.border}`, boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
-        <h1 style={{ margin: 0, fontSize: '1.75rem', fontWeight: 900, color: theme.text, display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <span style={{ color: theme.primary, fontSize: '1.4rem' }}>📦</span> Gestión de Pedidos Web
-        </h1>
+        <p style={{ margin: 0, fontSize: '0.85rem', color: theme.subtext }}>Pedidos recibidos desde la web: prepará, cobrá y sincronizá el stock</p>
         
         <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
           <input 

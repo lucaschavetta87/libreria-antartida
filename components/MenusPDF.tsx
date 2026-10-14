@@ -15,7 +15,7 @@ type ConteoCategoria = { total?: number };
 export default function MenuBotonCategorias({
   darkMode, label, icono = '🖨️', colorBoton = '#7c3aed', categorias = [], principalesIds = [],
   mostrarSubs = true, subsDe, subsubsDe, conteos = {}, extra = null, onElegir, btnBaseStyle,
-  accionCarpeta = 'Imprimir todos los códigos de', accionRuta = 'Imprimir los códigos de'
+  accionCarpeta = 'Imprimir todos los códigos de', accionRuta = 'Imprimir los códigos de', menuStyle
 }: {
   darkMode: boolean;
   label: string;
@@ -32,6 +32,8 @@ export default function MenuBotonCategorias({
   btnBaseStyle?: React.CSSProperties;
   accionCarpeta?: string;
   accionRuta?: string;
+  /** Ajuste del panel desplegable (en celular se ancla al ancho de la pantalla). */
+  menuStyle?: React.CSSProperties;
 }) {
   const [abierto, setAbierto] = useState(false);
   const [expCats, setExpCats] = useState<Record<string, boolean>>({});

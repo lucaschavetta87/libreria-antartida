@@ -54,19 +54,20 @@ export default function TablaStock({
   }
 
   return (
-    <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '5px' }}>
+    <div className="tabla-contenedor">
+    <table className="tabla" style={{ minWidth: '880px' }}>
       <thead>
-        <tr style={{ borderBottom: `1px solid ${theme.border}`, textAlign: 'left', fontSize: '0.82rem', color: theme.subtext }}>
-          <th style={{ padding: '12px', width: '30px' }}></th>
-          <th style={{ padding: '12px', width: '44px' }}></th>
-          <th style={{ padding: '12px' }}>PRODUCTO</th>
-          <th>CATEGORÍA</th>
-          <th>COSTO</th>
-          <th>+IVA</th>
-          <th style={{ color: '#8b5cf6' }}>MAYORISTA</th>
-          <th style={{ color: '#10b981' }}>MINORISTA</th>
-          <th style={{ color: '#f43f5e' }}>PROMO</th>
-          <th style={{ textAlign: 'right', paddingRight: '12px' }}>ACCIONES</th>
+        <tr>
+          <th style={{ width: '38px' }}></th>
+          <th style={{ width: '48px' }}></th>
+          <th>Producto</th>
+          <th>Categoría</th>
+          <th style={{ textAlign: 'right' }}>Costo</th>
+          <th style={{ textAlign: 'right' }}>+IVA</th>
+          <th style={{ textAlign: 'right', color: darkMode ? '#8b5cf6' : '#7c3aed' }}>Mayorista</th>
+          <th style={{ textAlign: 'right', color: darkMode ? '#10b981' : '#047857' }}>Minorista</th>
+          <th style={{ textAlign: 'right', color: darkMode ? '#f43f5e' : '#e11d48' }}>Promo</th>
+          <th style={{ textAlign: 'right' }}>Acciones</th>
         </tr>
       </thead>
       <tbody>
@@ -94,11 +95,11 @@ export default function TablaStock({
               </td>
               <td style={{ padding: '14px 12px', color: theme.text, fontWeight: '600', maxWidth: '260px' }}>{item.nombre}</td>
               <td style={{ color: theme.subtext, fontSize: '0.85rem' }}>{obtenerLabelCategoria(item.categoria)}</td>
-              <td style={{ color: theme.subtext }}>${Number(item.precio_costo || 0).toLocaleString()}</td>
-              <td style={{ color: theme.subtext }}>${Number(item.precio_iva || 0).toLocaleString()}</td>
-              <td style={{ color: '#8b5cf6', fontWeight: '600' }}>${Number(item.precio_mayorista || 0).toLocaleString()}</td>
-              <td style={{ color: '#10b981', fontWeight: '700' }}>${precioMinorista(item)}</td>
-              <td style={{ color: '#f43f5e', fontWeight: '700' }}>{item.precio_promo || '---'}</td>
+              <td style={{ textAlign: 'right', color: theme.subtext }} className="precio">${Number(item.precio_costo || 0).toLocaleString('es-AR')}</td>
+              <td style={{ textAlign: 'right', color: theme.subtext }} className="precio">${Number(item.precio_iva || 0).toLocaleString('es-AR')}</td>
+              <td style={{ textAlign: 'right', color: darkMode ? '#8b5cf6' : '#7c3aed', fontWeight: '700' }} className="precio">${Number(item.precio_mayorista || 0).toLocaleString('es-AR')}</td>
+              <td style={{ textAlign: 'right', color: darkMode ? '#10b981' : '#047857', fontWeight: '700' }} className="precio">${precioMinorista(item)}</td>
+              <td style={{ textAlign: 'right', color: darkMode ? '#f43f5e' : '#e11d48', fontWeight: '700' }}>{item.precio_promo || '—'}</td>
               <td style={{ textAlign: 'right', paddingRight: '12px' }}>
                 <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
                   <button onClick={e => { e.stopPropagation(); activarEdicion(item); }} style={actionBtnStyle('#3b82f6')}>✏️</button>
@@ -110,5 +111,6 @@ export default function TablaStock({
         )}
       </tbody>
     </table>
+    </div>
   );
 }

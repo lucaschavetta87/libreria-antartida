@@ -360,10 +360,10 @@ export default function VentasMayoristas({ stock, setStock, ventas, setVentas, d
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', width: '100%' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
-        <h2 style={{ color: '#8b5cf6', fontWeight: '800', margin: 0 }}>🏢 Módulo de Ventas Mayoristas</h2>
+        <p style={{ color: theme.subtext, margin: 0, fontSize: '0.85rem' }}>Remitos a clientes mayoristas con tarifa y cuenta corriente</p>
         <button
           onClick={() => setVerHistorial(!verHistorial)}
-          style={{ backgroundColor: verHistorial ? '#ef4444' : '#8b5cf6', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '12px', cursor: 'pointer', fontWeight: 'bold', transition: '0.2s' }}
+          style={{ backgroundColor: verHistorial ? '#ef4444' : '#8b5cf6', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '12px', cursor: 'pointer', fontWeight: 'bold', transition: '0.2s', width: isMobile ? '100%' : 'auto', minHeight: 42 }}
         >
           {verHistorial ? '✕ VOLVER AL PANEL VIVO' : '📜 VER HISTORIAL'}
         </button>

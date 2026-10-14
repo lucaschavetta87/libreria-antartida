@@ -41,7 +41,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
 
   // Tema y responsive vienen del proveedor raíz (antes se duplicaban por archivo).
-  const { darkMode, setDarkMode, theme, esMovil: isMobile } = useTema();
+  const { darkMode, setDarkMode, theme, esMovil: isMobile, montado } = useTema();
   const toast = useToast();
 
   // En el celular la sidebar no se usa (la navegación vive en el menú del Topbar).
@@ -194,7 +194,7 @@ export default function Home() {
   return (
     <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", minHeight: "100vh", backgroundColor: theme.bg, color: theme.text }}>
       
-      {!isMobile && (
+      {montado && !isMobile && (
         <Navbar 
           activeTab={activeTab} 
           setActiveTab={setActiveTab} 

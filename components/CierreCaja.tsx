@@ -302,8 +302,7 @@ export default function CierreCaja({ darkMode = true }: CierreCajaProps) {
       {/* HEADER */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'center', flexDirection: isMobile ? 'column' : 'row', gap: '20px' }}>
         <div>
-          <h2 style={{ color: theme.text, fontWeight: '900', margin: 0, fontSize: isMobile ? '1.5rem' : '2rem', letterSpacing: '-0.5px' }}>📊 Cierre y Auditoría Diaria</h2>
-          <p style={{ color: theme.subtext, margin: '6px 0 0 0', fontSize: '0.95rem' }}>Control discriminado de márgenes de venta mayorista y minorista con sincronización activa</p>
+          <p style={{ color: theme.subtext, margin: 0, fontSize: '0.9rem', maxWidth: '620px' }}>Control discriminado de márgenes de venta mayorista y minorista con sincronización activa</p>
         </div>
         <button 
           onClick={() => { setVerHistorialCierres(!verHistorialCierres); setCierreSeleccionado(null); }} 
