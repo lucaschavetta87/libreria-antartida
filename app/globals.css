@@ -1,99 +1,305 @@
 @import "tailwindcss";
 
-/* --- VARIABLES DE COLOR CONTROL CEL --- */
-:root {
-  --background: #0f172a; /* Azul noche profundo */
-  --foreground: #f8fafc; /* Blanco azulado */
-  --card-bg: #1e293b;    /* Gris azulado para tarjetas */
-  --border: #334155;     /* Color de bordes sutiles */
-  --accent: #3b82f6;     /* Azul ControlCel */
-  --success: #10b981;    /* Verde ARCA */
+/* =============================================================================
+   SISTEMA DE DISEÑO — VARIABLES
+   -----------------------------------------------------------------------------
+   El tema se aplica con [data-theme] en <html>. Todo el sistema lee estas
+   variables, así que cambiar un color es cambiar un token, no 200 estilos.
+   Los tokens en TypeScript viven en lib/theme.ts (mismos valores que acá).
+   ========================================================================== */
+
+:root,
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  --bg: #0f172a;
+  --card: #1e293b;
+  --card-alt: #243449;
+  --inner-box: #0f172a;
+  --input-bg: #0b1220;
+
+  --text: #f8fafc;
+  --text-strong: #ffffff;
+  --subtext: #94a3b8;
+  --muted: #64748b;
+
+  --border: #334155;
+  --border-strong: #475569;
+  --row-border: #1e293b;
+  --hover: rgba(255, 255, 255, 0.06);
+  --overlay: rgba(2, 6, 23, 0.78);
+
+  --accent: #4f46e5;
+  --accent-soft: rgba(99, 102, 241, 0.16);
+  --accent-ring: rgba(99, 102, 241, 0.35);
+  --success: #10b981;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --info: #3b82f6;
+  --mayorista: #8b5cf6;
+  --minorista: #10b981;
+  --promo: #f43f5e;
+
+  --shadow-card: 0 10px 30px -12px rgba(0, 0, 0, 0.55);
 }
 
-/* --- ESTILOS BASE --- */
+[data-theme='light'] {
+  color-scheme: light;
+
+  --bg: #f1f5f9;
+  --card: #ffffff;
+  --card-alt: #f8fafc;
+  --inner-box: #f8fafc;
+  --input-bg: #ffffff;
+
+  --text: #0f172a;
+  --text-strong: #020617;
+  --subtext: #475569;
+  --muted: #94a3b8;
+
+  --border: #e2e8f0;
+  --border-strong: #cbd5e1;
+  --row-border: #f1f5f9;
+  --hover: #f1f5f9;
+  --overlay: rgba(15, 23, 42, 0.55);
+
+  /* En fondo blanco los tonos base pierden contraste: se oscurecen. */
+  --success: #059669;
+  --warning: #b45309;
+  --danger: #dc2626;
+  --info: #2563eb;
+  --mayorista: #7c3aed;
+  --minorista: #047857;
+  --promo: #e11d48;
+
+  --shadow-card: 0 12px 28px -14px rgba(15, 23, 42, 0.28);
+}
+
+/* =============================================================================
+   BASE
+   ========================================================================== */
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
 body {
-  background-color: var(--background) !important;
-  color: var(--foreground) !important;
   margin: 0;
   padding: 0;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  transition: background-color 0.3s ease;
 }
 
-/* --- TRUCO MAESTRO: FORZAR MODO OSCURO EN TODO EL SISTEMA --- */
-/* Esto detecta cualquier div que tenga fondo blanco y lo vuelve oscuro automáticamente */
-div[style*="background-color: rgb(255, 255, 255)"], 
-div[style*="background-color: #fff"],
-div[style*="background-color: white"],
-div[style*="background: white"],
-div[style*="background: #fff"] {
-  background-color: var(--card-bg) !important;
-  border-color: var(--border) !important;
-  color: var(--foreground) !important;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.3) !important;
+body {
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  transition: background-color 0.25s ease, color 0.25s ease;
 }
 
-/* --- INPUTS Y FORMULARIOS UNIFICADOS --- */
-input, select, textarea {
-  background-color: #0f172a !important; /* Fondo más oscuro para los inputs */
-  color: #f8fafc !important;
+/* Foco visible para navegación por teclado (accesibilidad) */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* =============================================================================
+   FORMULARIOS
+   Se mantienen con !important porque los componentes traen estilos inline:
+   así el tema manda sobre el valor por defecto sin tocar cada componente.
+   ========================================================================== */
+
+input,
+select,
+textarea {
+  background-color: var(--input-bg) !important;
+  color: var(--text) !important;
   border: 1px solid var(--border) !important;
   border-radius: 10px !important;
-  padding: 10px !important;
   outline: none;
-  transition: border-color 0.2s;
+  font-family: inherit;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-input:focus, select:focus {
+input:focus,
+select:focus,
+textarea:focus {
   border-color: var(--accent) !important;
+  box-shadow: 0 0 0 3px var(--accent-ring);
 }
 
-input::placeholder {
-  color: #64748b;
+input::placeholder,
+textarea::placeholder {
+  color: var(--muted) !important;
 }
 
-/* --- SCROLLBAR ESTILO DARK --- */
+input[type='checkbox'],
+input[type='radio'] {
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+button {
+  font-family: inherit;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* =============================================================================
+   UTILIDADES DE LAYOUT RESPONSIVE
+   (complementan al JS isMobile; permiten resolver lo structural con CSS)
+   ========================================================================== */
+
+.tarjeta {
+  background-color: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow-card);
+}
+
+/* Contenido principal: padding que se adapta solo al ancho */
+.contenido-principal {
+  padding: 28px 32px;
+}
+
+/* Tablas con encabezado fijo: indispensable en listas largas */
+.tabla-contenedor {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.tabla {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.tabla thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background-color: var(--card);
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--subtext);
+  padding: 10px 12px;
+  white-space: nowrap;
+}
+
+.tabla tbody tr {
+  border-bottom: 1px solid var(--row-border);
+}
+
+.tabla tbody tr:hover {
+  background-color: var(--hover);
+}
+
+.etiqueta {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--subtext);
+}
+
+.precio {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-weight: 700;
+}
+
+.numero {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* Elementos que solo aparecen en pantallas grandes / pequeñas */
+.solo-escritorio {
+  display: initial;
+}
+.solo-movil {
+  display: none;
+}
+
+@media (max-width: 1024px) {
+  .contenido-principal {
+    padding: 20px 20px;
+  }
+}
+
+@media (max-width: 768px) {
+  .contenido-principal {
+    padding: 14px 14px;
+  }
+
+  .solo-escritorio {
+    display: none !important;
+  }
+
+  .solo-movil {
+    display: initial;
+  }
+}
+
+/* =============================================================================
+   SCROLLBAR
+   ========================================================================== */
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
 ::-webkit-scrollbar {
-  width: 8px;
+  width: 10px;
+  height: 10px;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--background);
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #334155;
-  border-radius: 10px;
+  background: var(--border);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #475569;
+  background: var(--border-strong);
+  background-clip: content-box;
 }
 
-/* --- ESTILOS PARA LAS TARJETAS (DASHBOARD) --- */
-.dashboard-card {
-  background-color: var(--card-bg);
-  border: 1px solid var(--border);
-  border-radius: 24px;
-  padding: 25px;
-  transition: transform 0.2s ease;
+/* =============================================================================
+   IMPRESIÓN
+   Solo affects a los ticket y catálogos marcados: antes se blanqueaba TODO el
+   documento, lo que dejaba los tickets con fondos oscuros al imprimir.
+   ========================================================================== */
+
+.no-imprimir {
+  display: none !important;
 }
 
-.dashboard-card:hover {
-  transform: translateY(-5px);
-}
-
-/* --- PREVENCIÓN PARA IMPRESIÓN --- */
-/* Esto asegura que los tickets NO salgan negros al imprimir */
 @media print {
   body {
-    background-color: #fff !important;
-    color: #000 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
   }
-  div, p, span, h1, h2, h3 {
-    background-color: #fff !important;
-    color: #000 !important;
-    border-color: #000 !important;
+
+  .ticket-print,
+  .ticket-print * {
+    background: transparent !important;
+    color: #000000 !important;
     box-shadow: none !important;
+    border-color: #000000 !important;
+    text-shadow: none !important;
   }
 }

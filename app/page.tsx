@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "./supabase";
 import Navbar from "../components/Navbar";
+import Topbar from "../components/Topbar";
 import DashboardInicio from "../components/DashboardInicio"; 
 import Stock from "../components/GestionStock";
 import Ventas from "../components/Ventas";
@@ -12,6 +13,8 @@ import CierreCaja from "../components/CierreCaja";
 import GestionUsuarios from "../components/GestiondeUsuarios"; 
 import PedidosWeb from "../components/PedidosWeb";
 import GestionPortada from "../components/GestionPortada";
+import { crearTema, COLORES, TITULOS_APP } from "../lib/theme";
+import { paddingContenido } from "../lib/ui";
 
 // Tipos
 interface StockItem { id: number; nombre: string; cantidad: number; [key: string]: any; }
@@ -21,15 +24,14 @@ type TabKey = "inicio" | "stock" | "ventas" | "ventas_mayoristas" | "pedidos_web
 
 const APP_TITLE = "Pueblos del Mundo";
 
-const buildTheme = (darkMode: boolean) => ({
-  bg: darkMode ? "#0f172a" : "#F9FAFB",
-  card: darkMode ? "#1e293b" : "#FFFFFF",
-  text: darkMode ? "#f8fafc" : "#111827",
-  subtext: darkMode ? "#94a3b8" : "#6B7280",
-  border: darkMode ? "#334155" : "#e2e8f0",
-  innerBox: darkMode ? "#0f172a" : "#f1f5f9", 
-  shadow: "0 10px 15px -3px rgba(0, 0, 0, 0.04), 0 4px 6px -2px rgba(0, 0, 0, 0.02)"
-});
+// El tema se persiste y se aplica con [data-theme] en <html> (ver layout.tsx).
+const leerTemaGuardado = (): boolean => {
+  if (typeof window === 'undefined') return true;
+  const guardado = window.localStorage.getItem('tema');
+  if (guardado === 'oscuro') return true;
+  if (guardado === 'claro') return false;
+  return true;
+};
 
 export const dynamic = "force-dynamic";
 
@@ -38,7 +40,7 @@ export default function Home() {
   const [user, setUser] = useState("");
   const [pass, setPass] = useState("");
   const [usuarioActivo, setUsuarioActivo] = useState<any | null>(null); 
-  const [darkMode, setDarkMode] = useState(false);
+  const [darkMode, setDarkMode] = useState<boolean>(leerTemaGuardado);
   const [activeTab, setActiveTab] = useState<TabKey>("inicio");
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [ventas, setVentas] = useState<Venta[]>([]);
@@ -48,7 +50,13 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
-  const theme = buildTheme(darkMode);
+  const theme = crearTema(darkMode);
+
+  // Mantiene <html data-theme> alineado con el estado y guarda la preferencia.
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light');
+    try { window.localStorage.setItem('tema', darkMode ? 'oscuro' : 'claro'); } catch { /* modo privado */ }
+  }, [darkMode]);
 
   useEffect(() => {
     const checkResponsiveness = () => {
@@ -140,13 +148,65 @@ export default function Home() {
 
   if (!isAuthenticated) {
     return (
-      <div style={{ minHeight: "100vh", backgroundColor: "#6366F1", display: "flex", justifyContent: "center", alignItems: "center", padding: "16px" }}>
-        <form onSubmit={handleLogin} style={{ backgroundColor: "#FFFFFF", padding: isMobile ? "30px 20px" : "40px", borderRadius: "24px", width: "100%", maxWidth: "380px", textAlign: "center", boxShadow: "0 10px 25px rgba(0,0,0,0.1)" }}>
-          <h1 style={{ fontWeight: 900, marginBottom: "24px", fontSize: isMobile ? "1.6rem" : "2rem", color: "#111827" }}>{APP_TITLE}</h1>
-          <input type="text" placeholder="Usuario" onChange={(e) => setUser(e.target.value)} style={{ width: "100%", padding: "12px", marginBottom: "15px", borderRadius: "10px", border: "1px solid #E5E7EB", fontSize: "16px" }} />
-          <input type="password" placeholder="Contraseña" onChange={(e) => setPass(e.target.value)} style={{ width: "100%", padding: "12px", marginBottom: "20px", borderRadius: "10px", border: "1px solid #E5E7EB", fontSize: "16px" }} />
-          <button type="submit" style={{ width: "100%", padding: "12px", borderRadius: "10px", border: "none", backgroundColor: "#6366F1", color: "#FFFFFF", cursor: "pointer", fontWeight: "bold", fontSize: "16px" }}>Entrar</button>
+      <div style={{
+        minHeight: "100vh",
+        background: darkMode
+          ? "radial-gradient(1200px 600px at 50% -10%, #312e81 0%, #0f172a 60%)"
+          : "radial-gradient(1200px 600px at 50% -10%, #e0e7ff 0%, #f1f5f9 60%)",
+        display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center",
+        padding: isMobile ? "16px" : "24px", gap: "14px"
+      }}>
+        <form onSubmit={handleLogin} style={{
+          backgroundColor: theme.card,
+          color: theme.text,
+          border: `1px solid ${theme.border}`,
+          padding: isMobile ? "28px 20px" : "40px 36px",
+          borderRadius: "20px",
+          width: "100%", maxWidth: "380px", textAlign: "center",
+          boxShadow: theme.shadowCard
+        }}>
+          <div style={{
+            width: "56px", height: "56px", margin: "0 auto 14px", borderRadius: "16px",
+            background: `linear-gradient(180deg, #4f46e5 0%, #6366f1 100%)`,
+            display: "flex", alignItems: "center", justifyContent: "center", fontSize: "26px"
+          }}>🕉️</div>
+
+          <h1 style={{ fontWeight: 800, margin: "0 0 4px", fontSize: isMobile ? "1.35rem" : "1.6rem", color: theme.text }}>{APP_TITLE}</h1>
+          <p style={{ margin: "0 0 22px", fontSize: "0.82rem", color: theme.subtext }}>Sistema de gestión</p>
+
+          <input
+            type="text" placeholder="Usuario" autoComplete="username" value={user}
+            onChange={(e) => setUser(e.target.value)}
+            style={{ width: "100%", padding: "13px 14px", marginBottom: "12px", borderRadius: "10px", fontSize: "16px" }}
+          />
+          <input
+            type="password" placeholder="Contraseña" autoComplete="current-password" value={pass}
+            onChange={(e) => setPass(e.target.value)}
+            style={{ width: "100%", padding: "13px 14px", marginBottom: "18px", borderRadius: "10px", fontSize: "16px" }}
+          />
+          <button type="submit" style={{
+            width: "100%", padding: "13px", borderRadius: "10px", border: "none",
+            background: `linear-gradient(180deg, #4f46e5 0%, #4338ca 100%)`, color: "#FFFFFF",
+            cursor: "pointer", fontWeight: 700, fontSize: "16px", minHeight: "48px"
+          }}>Entrar</button>
+
+          <button
+            type="button"
+            onClick={() => setDarkMode(!darkMode)}
+            aria-label={darkMode ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
+            style={{
+              marginTop: "16px", background: "transparent", border: `1px solid ${theme.border}`,
+              borderRadius: "10px", padding: "9px 14px", color: theme.subtext, cursor: "pointer",
+              fontSize: "0.8rem", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: "7px"
+            }}
+          >
+            {darkMode ? "☀️ Modo claro" : "🌙 Modo oscuro"}
+          </button>
         </form>
+
+        <p style={{ margin: 0, fontSize: "0.75rem", color: darkMode ? "rgba(255,255,255,0.45)" : "#64748b", textAlign: "center" }}>
+          Acceso interno · Distribuidora India
+        </p>
       </div>
     );
   }
@@ -154,17 +214,38 @@ export default function Home() {
   return (
     <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", minHeight: "100vh", backgroundColor: theme.bg, color: theme.text }}>
       
-      <Navbar 
-        activeTab={activeTab} 
-        setActiveTab={setActiveTab} 
-        darkMode={darkMode} 
-        setDarkMode={setDarkMode} 
-        isCollapsed={isSidebarCollapsed} 
-        setIsCollapsed={setIsSidebarCollapsed}
+      {!isMobile && (
+        <Navbar 
+          activeTab={activeTab} 
+          setActiveTab={setActiveTab} 
+          darkMode={darkMode} 
+          setDarkMode={setDarkMode} 
+          isCollapsed={isSidebarCollapsed} 
+          setIsCollapsed={setIsSidebarCollapsed}
+          usuarioActivo={usuarioActivo}
+        />
+      )}
+
+      <Topbar
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        darkMode={darkMode}
+        setDarkMode={setDarkMode}
+        isCollapsed={isSidebarCollapsed}
         usuarioActivo={usuarioActivo}
+        stock={stock}
+        pedidosPendientes={ordenes.filter((o: any) => !o.estado || String(o.estado).toLowerCase() !== 'entregado').length}
       />
 
-      <main style={{ flexGrow: 1, padding: isMobile ? "20px 16px" : "40px 52px", marginLeft: isMobile ? "0px" : (isSidebarCollapsed ? "90px" : "270px"), paddingTop: isMobile ? "90px" : "40px" }}>
+      <main style={{
+        flexGrow: 1,
+        minWidth: 0,
+        ...paddingContenido(isMobile),
+        // Deja lugar para la barra superior fija
+        paddingTop: isMobile ? 76 : 82,
+        marginLeft: isMobile ? "0px" : (isSidebarCollapsed ? "76px" : "248px"),
+        transition: "margin-left 0.25s ease, padding 0.2s ease"
+      }}>
         <div style={{ maxWidth: "1512px", margin: "0 auto", width: "100%" }}>
           
           {activeTab === "usuarios" && usuarioActivo?.username === "admin" && (
