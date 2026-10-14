@@ -1,3 +1,6 @@
+// globals.css nunca había sido importado en el proyecto: sin esto no se aplican
+// las variables de tema, las utilidades responsive ni el css de impresión.
+import './globals.css';
 import TemaGlobal from '../components/ui/TemaGlobal';
 
 // El sistema arranca siempre en modo claro: el tema se aplica antes de pintar

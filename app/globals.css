@@ -260,12 +260,14 @@ button:disabled {
   }
 }
 
-/* Elementos que solo aparecen en pantallas grandes / pequeñas */
+/* Elementos que solo aparecen en pantallas grandes / pequeñas.
+   Llevan !important porque los componentes traen `display` en estilos inline
+   y, al ser inline, gana contra la regla de clase. */
 .solo-escritorio {
-  display: initial;
+  display: initial !important;
 }
 .solo-movil {
-  display: none;
+  display: none !important;
 }
 
 @media (max-width: 1024px) {
@@ -284,7 +286,7 @@ button:disabled {
   }
 
   .solo-movil {
-    display: initial;
+    display: flex !important;
   }
 }
 
