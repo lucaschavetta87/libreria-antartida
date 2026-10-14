@@ -129,59 +129,79 @@ export default function Home() {
   if (!isAuthenticated) {
     return (
       <div style={{
-        minHeight: "100vh",
+        minHeight: "100dvh",
+        width: "100%",
         background: darkMode
           ? "radial-gradient(1200px 600px at 50% -10%, #312e81 0%, #0f172a 60%)"
           : "radial-gradient(1200px 600px at 50% -10%, #e0e7ff 0%, #f1f5f9 60%)",
-        display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center",
-        padding: isMobile ? "16px" : "24px", gap: "14px"
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: "16px",
+        padding: isMobile ? "20px 16px" : "32px 24px"
       }}>
-        <form onSubmit={handleLogin} style={{
-          backgroundColor: theme.card,
-          color: theme.text,
-          border: `1px solid ${theme.border}`,
-          padding: isMobile ? "28px 20px" : "40px 36px",
-          borderRadius: "20px",
-          width: "100%", maxWidth: "380px", textAlign: "center",
-          boxShadow: theme.shadowCard
-        }}>
-          <div style={{
-            width: "56px", height: "56px", margin: "0 auto 14px", borderRadius: "16px",
-            background: `linear-gradient(180deg, #4f46e5 0%, #6366f1 100%)`,
-            display: "flex", alignItems: "center", justifyContent: "center", fontSize: "26px"
-          }}>🕉️</div>
+        <form
+          onSubmit={handleLogin}
+          style={{
+            backgroundColor: theme.card,
+            color: theme.text,
+            border: `1px solid ${theme.border}`,
+            borderRadius: "20px",
+            padding: isMobile ? "28px 22px" : "38px 36px",
+            width: "100%",
+            maxWidth: "380px",
+            margin: 0,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "stretch",
+            gap: "12px",
+            boxShadow: theme.shadowCard
+          }}
+        >
+          <div style={{ textAlign: "center", marginBottom: "6px" }}>
+            <div style={{
+              width: "56px", height: "56px", margin: "0 auto 14px", borderRadius: "16px",
+              background: "linear-gradient(180deg, #4f46e5 0%, #6366f1 100%)",
+              display: "flex", alignItems: "center", justifyContent: "center", fontSize: "26px"
+            }}>🕉️</div>
 
-          <h1 style={{ fontWeight: 800, margin: "0 0 4px", fontSize: isMobile ? "1.35rem" : "1.6rem", color: theme.text }}>{APP_TITLE}</h1>
-          <p style={{ margin: "0 0 22px", fontSize: "0.82rem", color: theme.subtext }}>Sistema de gestión</p>
+            <h1 style={{ fontWeight: 800, margin: "0 0 4px", fontSize: isMobile ? "1.35rem" : "1.6rem", color: theme.text }}>{APP_TITLE}</h1>
+            <p style={{ margin: 0, fontSize: "0.82rem", color: theme.subtext }}>Sistema de gestión</p>
+          </div>
 
           <input
-            type="text" placeholder="Usuario" autoComplete="username" value={user}
+            type="text" placeholder="Usuario" autoComplete="username" aria-label="Usuario" value={user}
             onChange={(e) => setUser(e.target.value)}
-            style={{ width: "100%", padding: "13px 14px", marginBottom: "12px", borderRadius: "10px", fontSize: "16px" }}
+            className="campo-alto"
+            style={{ width: "100%" }}
           />
           <input
-            type="password" placeholder="Contraseña" autoComplete="current-password" value={pass}
+            type="password" placeholder="Contraseña" autoComplete="current-password" aria-label="Contraseña" value={pass}
             onChange={(e) => setPass(e.target.value)}
-            style={{ width: "100%", padding: "13px 14px", marginBottom: "18px", borderRadius: "10px", fontSize: "16px" }}
+            className="campo-alto"
+            style={{ width: "100%" }}
           />
           <button type="submit" style={{
-            width: "100%", padding: "13px", borderRadius: "10px", border: "none",
-            background: `linear-gradient(180deg, #4f46e5 0%, #4338ca 100%)`, color: "#FFFFFF",
+            width: "100%", padding: "13px", borderRadius: "10px", border: "none", marginTop: "2px",
+            background: "linear-gradient(180deg, #4f46e5 0%, #4338ca 100%)", color: "#FFFFFF",
             cursor: "pointer", fontWeight: 700, fontSize: "16px", minHeight: "48px"
           }}>Entrar</button>
 
-          <button
-            type="button"
-            onClick={() => setDarkMode(!darkMode)}
-            aria-label={darkMode ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
-            style={{
-              marginTop: "16px", background: "transparent", border: `1px solid ${theme.border}`,
-              borderRadius: "10px", padding: "9px 14px", color: theme.subtext, cursor: "pointer",
-              fontSize: "0.8rem", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: "7px"
-            }}
-          >
-            {darkMode ? "☀️ Modo claro" : "🌙 Modo oscuro"}
-          </button>
+          <div style={{ textAlign: "center", marginTop: "6px" }}>
+            <button
+              type="button"
+              onClick={() => setDarkMode(!darkMode)}
+              aria-label={darkMode ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
+              style={{
+                background: "transparent", border: `1px solid ${theme.border}`,
+                borderRadius: "10px", padding: "9px 14px", color: theme.subtext, cursor: "pointer",
+                fontSize: "0.8rem", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: "7px"
+              }}
+            >
+              {darkMode ? "☀️ Modo claro" : "🌙 Modo oscuro"}
+            </button>
+          </div>
         </form>
 
         <p style={{ margin: 0, fontSize: "0.75rem", color: darkMode ? "rgba(255,255,255,0.45)" : "#64748b", textAlign: "center" }}>
@@ -214,7 +234,6 @@ export default function Home() {
         isCollapsed={isSidebarCollapsed}
         esMovil={isMobile}
         usuarioActivo={usuarioActivo}
-        stock={stock}
         pedidosPendientes={ordenes.filter((o: any) => !o.estado || String(o.estado).toLowerCase() !== 'entregado').length}
       />
 

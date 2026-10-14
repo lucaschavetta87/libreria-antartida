@@ -31,11 +31,11 @@ export const useTema = (): ContextoTema => {
   return ctx;
 };
 
-// El tema arranca siempre en oscuro para que el HTML del servidor y el primer
-// render del cliente coincidan (si no, React avisa de hidratación). La
-// preferencia real se aplica apenas monta: el script de app/layout.tsx ya
-// puso el tema correcto en el DOM, así que no hay parpadeo.
-const _temaInicial = true;
+// El sistema SIEMPRE arranca en modo claro. No se guarda la preferencia: si el
+// usuario cambia a oscuro, queda oscuro en esa sesión, pero al entrar de nuevo
+// vuelve al claro. Además, el valor inicial es fijo para que el HTML del
+// servidor y el primer render del cliente coincidan (React avisa si no).
+const _temaInicial = false;
 
 export default function TemaGlobal({ children }: { children: React.ReactNode }) {
   const [darkMode, setDarkMode] = useState<boolean>(_temaInicial);
@@ -43,20 +43,10 @@ export default function TemaGlobal({ children }: { children: React.ReactNode }) 
   const [ancho, setAncho] = useState(1280);
   const [montado, setMontado] = useState(false);
 
-  // Aplica el tema al DOM y lo persiste.
+  // Aplica el tema elegido al DOM (sin persistencia: siempre se entra en claro).
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light');
-    try { window.localStorage.setItem('tema', darkMode ? 'oscuro' : 'claro'); } catch { /* modo privado */ }
   }, [darkMode]);
-
-  // Primera vez: se adopta la preferencia guardada (sin parpadeo visible).
-  useEffect(() => {
-    try {
-      const guardado = window.localStorage.getItem('tema');
-      if (guardado === 'oscuro') setDarkMode(true);
-      else if (guardado === 'claro') setDarkMode(false);
-    } catch { /* modo privado */ }
-  }, []);
 
   // Un solo listener de resize para toda la app (antes estaba duplicado en 4 archivos).
   useEffect(() => {

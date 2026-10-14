@@ -130,6 +130,17 @@ textarea:focus {
   box-shadow: 0 0 0 3px var(--accent-ring);
 }
 
+/* Campos con más aire (login y formularios destacados).
+   Necesitan !important porque la regla global de inputs lo fija. */
+.campo-alto {
+  padding: 13px 14px !important;
+  font-size: 16px !important;
+}
+
+.campo-centrado {
+  text-align: center;
+}
+
 input::placeholder,
 textarea::placeholder {
   color: var(--muted) !important;
