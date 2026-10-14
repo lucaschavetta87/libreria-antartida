@@ -253,7 +253,7 @@ export default function Home() {
           )}
 
           {activeTab === "inicio" && tienePermiso("inicio") && (
-            <DashboardInicio darkMode={darkMode} />
+            <DashboardInicio darkMode={darkMode} onNavegar={(tab) => setActiveTab(tab as TabKey)} />
           )}
 
           {activeTab === "pagina_web" && (

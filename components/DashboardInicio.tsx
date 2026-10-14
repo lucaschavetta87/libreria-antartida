@@ -1,60 +1,86 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../app/supabase';
+import { crearTema } from '../lib/theme';
+import { Cargando } from './ui/Piezas';
+import { Icono } from './Icons';
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from "recharts";
 
-interface MetricasType {
+// =============================================================================
+// Inicio / Dashboard
+// -----------------------------------------------------------------------------
+// Criterio de esta pantalla: mostrar DATOS REALES y, cuando un número es
+// estimado, decirlo explícitamente. Antes la "ganancia" de las ventas sin
+// detalle de ítems se inventaba con un 35% fijo, lo que hacía que el número
+// pareciera una medición cuando en realidad era una suposición.
+// =============================================================================
+
+type SerieDia = {
+  clave: string;
+  fecha: string;
+  Total: number;
+  Ganancia: number;
+  BaseGanancia: number;
+  SinDetalle: number;
+  Ventas: number;
+};
+
+type MetricasType = {
+  cajaHoy: number;
+  gananciaHoy: number;
+  baseGananciaHoy: number;
   ventasHoy: number;
+  ventasHoySinDetalle: number;
   totalCalle: number;
-  productosBajoStock: number;
-  clientesActivos: number;
-  graficoSemana: Array<{ fecha: string; Total: number; Ganancia: number }>;
-  graficoMeses: Array<{ mes: string; Total: number; Ganancia: number }>;
-}
+  clientes: number;
+  clientesConDeuda: number;
+  totalProductos: number;
+  productosDisponibles: number;
+  productosAgotados: number;
+  valorInventarioCosto: number;
+  pedidosPendientes: number;
+  cajaSinCerrar: boolean;
+  graficoSemana: SerieDia[];
+  graficoMeses: SerieDia[];
+};
 
-export default function DashboardInicio({ darkMode = true, APP_TITLE = "Pueblos de la India" }: { darkMode?: boolean; APP_TITLE?: string }) {
-  const [metricas, setMetricas] = useState<MetricasType>({
-    ventasHoy: 0,
-    totalCalle: 0,
-    productosBajoStock: 0,
-    clientesActivos: 0,
-    graficoSemana: [],
-    graficoMeses: []
-  });
+const METRICAS_VACIAS: MetricasType = {
+  cajaHoy: 0, gananciaHoy: 0, baseGananciaHoy: 0, ventasHoy: 0, ventasHoySinDetalle: 0,
+  totalCalle: 0, clientes: 0, clientesConDeuda: 0,
+  totalProductos: 0, productosDisponibles: 0, productosAgotados: 0, valorInventarioCosto: 0,
+  pedidosPendientes: 0, cajaSinCerrar: false,
+  graficoSemana: [], graficoMeses: []
+};
+
+export default function DashboardInicio({
+  darkMode = true,
+  onNavegar
+}: { darkMode?: boolean; onNavegar?: (tab: string) => void }) {
+  const [metricas, setMetricas] = useState<MetricasType>(METRICAS_VACIAS);
   const [cargando, setCargando] = useState(true);
-  const [isMobile, setIsMobile] = useState(false);
+  const [actualizado, setActualizado] = useState<Date | null>(null);
+  const [refrescando, setRefrescando] = useState(false);
 
-  useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth <= 768);
-    handleResize();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  const theme = {
-    card: darkMode ? '#1e293b' : '#ffffff',
-    bg: darkMode ? '#0f172a' : '#f8fafc',
-    text: darkMode ? '#f8fafc' : '#111827',
-    subtext: darkMode ? '#94a3b8' : '#64748b',
-    border: darkMode ? '#334155' : '#e2e8f0',
-    accent: '#8B5CF6',
-    success: '#10b981',
-    danger: '#ef4444'
-  };
+  const theme = crearTema(darkMode);
 
   const cargarMetricasYBalances = async (silencioso = false) => {
     if (!silencioso) setCargando(true);
     try {
-      // 1. Sincronizar el Mapa de Precios y Costos Vivos de la tabla Stock
+      // 1. Precios vivos + estado real de stock
       const { data: stockItems } = await supabase
         .from('stock')
-        .select('nombre, precio_costo, precio_minorista, precio_mayorista');
-      
+        .select('nombre, precio_costo, precio_minorista, precio_mayorista, sin_stock');
+
       const mapaPrecios = new Map<string, { costo: number; venta: number }>();
+      let totalProductos = 0;
+      let productosAgotados = 0;
+      let valorInventarioCosto = 0;
+
       if (stockItems) {
+        totalProductos = stockItems.length;
         stockItems.forEach((item: any) => {
           if (item.nombre) {
             mapaPrecios.set(item.nombre.trim().toLowerCase(), {
@@ -62,10 +88,12 @@ export default function DashboardInicio({ darkMode = true, APP_TITLE = "Pueblos 
               venta: Number(item.precio_minorista || item.precio_mayorista) || 0
             });
           }
+          if (item.sin_stock) productosAgotados++;
+          valorInventarioCosto += Number(item.precio_costo) || 0;
         });
       }
 
-      // 2. Traer Ventas completadas
+      // 2. Ventas completadas
       const { data: ventas } = await supabase
         .from('ventas')
         .select('*')
@@ -73,13 +101,14 @@ export default function DashboardInicio({ darkMode = true, APP_TITLE = "Pueblos 
 
       const ventasValidas = ventas || [];
       const hoy = new Date();
+      const esMismoDia = (a: Date, b: Date) =>
+        a.getDate() === b.getDate() && a.getMonth() === b.getMonth() && a.getFullYear() === b.getFullYear();
 
       const obtenerFechaVenta = (v: any) => {
         if (v.created_at) return new Date(v.created_at);
         if (v.id && !isNaN(Number(v.id)) && String(v.id).length > 10) return new Date(Number(v.id));
         if (v.fecha) {
-          // Intento de parseo de fecha en string "DD/MM/YYYY, HH:MM:SS" o similar
-          const partes = v.fecha.split(/[\/\s,:]+/);
+          const partes = String(v.fecha).split(/[\/\s,:]+/);
           if (partes.length >= 3) {
             return new Date(Number(partes[2]), Number(partes[1]) - 1, Number(partes[0]));
           }
@@ -87,269 +116,402 @@ export default function DashboardInicio({ darkMode = true, APP_TITLE = "Pueblos 
         return null;
       };
 
-      // Calcular caja de hoy de forma robusta
-      let totalVentasHoy = 0;
-      ventasValidas.forEach((venta: any) => {
-        const fechaVenta = obtenerFechaVenta(venta);
-        if (!fechaVenta || isNaN(fechaVenta.getTime())) return;
+      /**
+       * Calcula caja y ganancia de un conjunto de ventas.
+       * - `BaseGanancia` es el monto sobre el que la ganancia sí es calculable
+       *   (ventas con detalle de ítems y costo conocido).
+       * - `SinDetalle` es el monto que NO se puede|DE|_DE| evaluar sin inventar
+       *   un margen: se muestra aparte en vez de disimularlo.
+       */
+      const resumirVentas = (lista: any[]) => {
+        let total = 0;
+        let base = 0;
+        let costo = 0;
+        let sinDetalle = 0;
+        let ventasSinDetalle = 0;
 
-        const esHoy = 
-          fechaVenta.getDate() === hoy.getDate() &&
-          fechaVenta.getMonth() === hoy.getMonth() &&
-          fechaVenta.getFullYear() === hoy.getFullYear();
+        lista.forEach((venta: any) => {
+          const neto = Number(venta.total || 0);
+          total += neto;
 
-        if (esHoy) {
-          totalVentasHoy += Number(venta.total || 0);
-        }
-      });
-
-      // 3. Traer Clientes (Saldos en calle)
-      const { data: clientes } = await supabase.from('clientes').select('saldo_cc');
-      const totalCalle = clientes ? clientes.reduce((acc: number, c: any) => acc + (Number(c.saldo_cc) || 0), 0) : 0;
-      const cantidadClientes = clientes ? clientes.length : 0;
-
-      // 4. Conteo seguro de productos en catálogo
-      const { count: totalProductos } = await supabase.from('stock').select('*', { count: 'exact', head: true });
-
-      // --- GENERAR DATOS PARA EL GRÁFICO SEMANAL (Últimos 7 días) ---
-      const graficoSemana = [...Array(7)].map((_, i) => {
-        const d = new Date();
-        d.setDate(d.getDate() - (6 - i));
-        
-        const ventasDelDia = ventasValidas.filter((v: any) => {
-          const fv = obtenerFechaVenta(v);
-          return fv && 
-            fv.getDate() === d.getDate() && 
-            fv.getMonth() === d.getMonth() && 
-            fv.getFullYear() === d.getFullYear();
-        });
-
-        let cajaBrutaTotal = 0;
-        let costoTotalReposicion = 0;
-
-        ventasDelDia.forEach((venta: any) => {
-          const netoVenta = Number(venta.total || 0);
-          cajaBrutaTotal += netoVenta;
-
-          if (Array.isArray(venta.items)) {
+          if (Array.isArray(venta.items) && venta.items.length > 0) {
+            let costoVenta = 0;
             venta.items.forEach((item: any) => {
-              const nombreClave = item.nombre ? item.nombre.trim().toLowerCase() : '';
-              const vivo = mapaPrecios.get(nombreClave);
-              const costoUnitario = Number(item.precio_costo) || vivo?.costo || 0;
-              const unidades = Number(item.unidades || 1);
-              costoTotalReposicion += (costoUnitario * unidades);
+              const clave = item.nombre ? item.nombre.trim().toLowerCase() : '';
+              const costoUnitario = Number(item.precio_costo) || mapaPrecios.get(clave)?.costo || 0;
+              costoVenta += costoUnitario * (Number(item.unidades || 1));
             });
+            base += neto;
+            costo += costoVenta;
           } else {
-            costoTotalReposicion += netoVenta * 0.65; // Margen de resguardo
+            sinDetalle += neto;
+            ventasSinDetalle++;
           }
         });
 
+        return { total, base, ganancia: Math.max(0, base - costo), sinDetalle, ventasSinDetalle, cantidad: lista.length };
+      };
+
+      const ventasDeHoy = ventasValidas.filter((v: any) => {
+        const fv = obtenerFechaVenta(v);
+        return fv && !isNaN(fv.getTime()) && esMismoDia(fv, hoy);
+      });
+      const resumenHoy = resumirVentas(ventasDeHoy);
+
+      // 3. Clientes (deuda en calle)
+      const { data: clientes } = await supabase.from('clientes').select('saldo_cc');
+      const totalCalle = clientes ? clientes.reduce((acc: number, c: any) => acc + (Number(c.saldo_cc) || 0), 0) : 0;
+      const clientesConDeuda = clientes ? clientes.filter((c: any) => (Number(c.saldo_cc) || 0) > 0).length : 0;
+
+      // 4. Pedidos web pendientes y estado del cierre de caja
+      const { data: ordenes } = await supabase.from('ordenes').select('id, estado');
+      const pedidosPendientes = ordenes
+        ? ordenes.filter((o: any) => !['entregado', 'completado', 'cancelado'].includes(String(o.estado || '').toLowerCase())).length
+        : 0;
+
+      const hoyStr = hoy.toLocaleDateString('es-AR');
+      const { data: cierres } = await supabase
+        .from('cierres_caja')
+        .select('fecha_cierre')
+        .ilike('fecha_cierre', `%${hoyStr}%`)
+        .limit(1);
+      const cajaSinCerrar = !cierres || cierres.length === 0;
+
+      // 5. Gráfico semanal (últimos 7 días)
+      const graficoSemana: SerieDia[] = [...Array(7)].map((_, i) => {
+        const d = new Date();
+        d.setDate(d.getDate() - (6 - i));
+        const lista = ventasValidas.filter((v: any) => {
+          const fv = obtenerFechaVenta(v);
+          return fv && esMismoDia(fv, d);
+        });
+        const r = resumirVentas(lista);
         return {
+          clave: d.toISOString().slice(0, 10),
           fecha: `${d.getDate()}/${d.getMonth() + 1}`,
-          Total: cajaBrutaTotal,
-          Ganancia: Math.max(0, cajaBrutaTotal - costoTotalReposicion)
+          Total: r.total, Ganancia: r.ganancia, BaseGanancia: r.base,
+          SinDetalle: r.sinDetalle, Ventas: r.cantidad
         };
       });
 
-      // --- GENERAR DATOS PARA EL GRÁFICO MENSUAL (Últimos 6 meses) ---
+      // 6. Gráfico mensual (últimos 6 meses)
       const nombresMeses = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
-      const graficoMeses = [...Array(6)].map((_, i) => {
+      const graficoMeses: SerieDia[] = [...Array(6)].map((_, i) => {
         const d = new Date();
         d.setMonth(d.getMonth() - (5 - i));
-        const mesIndex = d.getMonth();
-        const anio = d.getFullYear();
-
-        const ventasDelMes = ventasValidas.filter((v: any) => {
+        const lista = ventasValidas.filter((v: any) => {
           const fv = obtenerFechaVenta(v);
-          return fv && fv.getMonth() === mesIndex && fv.getFullYear() === anio;
+          return fv && fv.getMonth() === d.getMonth() && fv.getFullYear() === d.getFullYear();
         });
-
-        let cajaBrutaTotal = 0;
-        let costoTotalReposicion = 0;
-
-        ventasDelMes.forEach((venta: any) => {
-          const netoVenta = Number(venta.total || 0);
-          cajaBrutaTotal += netoVenta;
-
-          if (Array.isArray(venta.items)) {
-            venta.items.forEach((item: any) => {
-              const nombreClave = item.nombre ? item.nombre.trim().toLowerCase() : '';
-              const vivo = mapaPrecios.get(nombreClave);
-              const costoUnitario = Number(item.precio_costo) || vivo?.costo || 0;
-              const unidades = Number(item.unidades || 1);
-              costoTotalReposicion += (costoUnitario * unidades);
-            });
-          } else {
-            costoTotalReposicion += netoVenta * 0.65;
-          }
-        });
-
+        const r = resumirVentas(lista);
         return {
-          mes: `${nombresMeses[mesIndex]} ${String(anio).slice(-2)}`,
-          Total: cajaBrutaTotal,
-          Ganancia: Math.max(0, cajaBrutaTotal - costoTotalReposicion)
+          clave: `${d.getFullYear()}-${d.getMonth()}`,
+          fecha: `${nombresMeses[d.getMonth()]} ${String(d.getFullYear()).slice(-2)}`,
+          Total: r.total, Ganancia: r.ganancia, BaseGanancia: r.base,
+          SinDetalle: r.sinDetalle, Ventas: r.cantidad
         };
       });
 
       setMetricas({
-        ventasHoy: totalVentasHoy,
-        totalCalle: totalCalle,
-        productosBajoStock: totalProductos || 0,
-        clientesActivos: cantidadClientes,
-        graficoSemana,
-        graficoMeses
+        cajaHoy: resumenHoy.total,
+        gananciaHoy: resumenHoy.ganancia,
+        baseGananciaHoy: resumenHoy.base,
+        ventasHoy: resumenHoy.cantidad,
+        ventasHoySinDetalle: resumenHoy.ventasSinDetalle,
+        totalCalle, clientes: clientes ? clientes.length : 0, clientesConDeuda,
+        totalProductos, productosDisponibles: totalProductos - productosAgotados,
+        productosAgotados, valorInventarioCosto,
+        pedidosPendientes, cajaSinCerrar,
+        graficoSemana, graficoMeses
       });
+      setActualizado(new Date());
     } catch (error) {
       console.error("Error al estructurar las métricas avanzadas:", error);
     } finally {
-      if (!silencioso) setCargando(false);
+      setCargando(false);
+      setRefrescando(false);
     }
   };
 
-  useEffect(() => {
-    cargarMetricasYBalances();
-  }, []);
+  useEffect(() => { cargarMetricasYBalances(); }, []);
 
-  // --- ESCUCHADOR EN TIEMPO REAL (REALTIME) ---
+  // Tiempo real: cualquier venta refresca los montos
   useEffect(() => {
-    const canalVentasInicio = supabase
+    const canal = supabase
       .channel('realtime-dashboard-ventas')
-      .on(
-        'postgres_changes', 
-        { event: '*', schema: 'public', table: 'ventas' }, 
-        () => {
-          cargarMetricasYBalances(true);
-        }
-      )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'ventas' }, () => cargarMetricasYBalances(true))
       .subscribe();
-
-    return () => {
-      supabase.removeChannel(canalVentasInicio);
-    };
+    return () => { supabase.removeChannel(canal); };
   }, []);
 
-  const gridCardsStyle: React.CSSProperties = {
-    display: 'grid',
-    gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(240px, 1fr))',
-    gap: '20px',
-    width: '100%',
-    marginBottom: '25px'
-  };
+  // ---------------------------------------------------------------------
+  // Piezas visuales
+  // ---------------------------------------------------------------------
 
-  const gridGraficosStyle: React.CSSProperties = {
-    display: 'grid',
-    gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
-    gap: '25px',
-    width: '100%'
-  };
+  const pesos = (valor: number) => `$${Number(valor || 0).toLocaleString('es-AR')}`;
 
-  const cardStyle = (borderColor: string): React.CSSProperties => ({
+  const tarjeta = (extra: React.CSSProperties = {}): React.CSSProperties => ({
     backgroundColor: theme.card,
-    padding: '22px',
-    borderRadius: '20px',
-    borderTop: `1px solid ${theme.border}`,
-    borderRight: `1px solid ${theme.border}`,
-    borderBottom: `1px solid ${theme.border}`,
-    borderLeft: `5px solid ${borderColor}`,
-    boxShadow: darkMode ? '0 4px 15px rgba(0, 0, 0, 0.2)' : '0 4px 12px rgba(0, 0, 0, 0.05)',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '6px'
+    border: `1px solid ${theme.border}`,
+    borderRadius: 18,
+    padding: 18,
+    boxShadow: theme.shadowCard,
+    ...extra
   });
 
-  const chartContainerStyle: React.CSSProperties = {
-    backgroundColor: theme.card,
-    padding: '25px 20px 15px 10px',
-    borderRadius: '24px',
-    border: `1px solid ${theme.border}`,
-    boxShadow: darkMode ? '0 4px 15px rgba(0, 0, 0, 0.2)' : '0 4px 12px rgba(0, 0, 0, 0.05)',
-    height: '380px',
-    width: '100%'
-  };
+  const Kpi = ({
+    etiqueta, valor, detalle, color, icono
+  }: { etiqueta: string; valor: string; detalle?: string; color: string; icono?: React.ReactNode }) => (
+    <div style={tarjeta({ display: 'flex', flexDirection: 'column', gap: 6, borderTop: `3px solid ${color}` })}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        {icono && <span style={{ color }}>{icono}</span>}
+        <span style={{ fontSize: '0.7rem', fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', color: theme.subtext }}>{etiqueta}</span>
+      </div>
+      <span style={{ fontSize: '1.7rem', fontWeight: 800, color: theme.text, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', lineHeight: 1.1 }}>
+        {valor}
+      </span>
+      {detalle && <span style={{ fontSize: '0.78rem', color: theme.subtext }}>{detalle}</span>}
+    </div>
+  );
+
+  const pendiente = (titulo: string, detalle: string, tab: string, color: string, Ico: any) => (
+    <button
+      onClick={() => onNavegar?.(tab)}
+      disabled={!onNavegar}
+      style={{
+        display: 'flex', alignItems: 'center', gap: 12, width: '100%', textAlign: 'left',
+        padding: '13px 14px', borderRadius: 14, cursor: onNavegar ? 'pointer' : 'default',
+        background: theme.innerBox, border: `1px solid ${theme.border}`, color: theme.text
+      }}
+    >
+      <span style={{
+        width: 34, height: 34, borderRadius: 10, flexShrink: 0, display: 'flex',
+        alignItems: 'center', justifyContent: 'center', color, background: `${color}22`
+      }}>
+        <Ico size={17} />
+      </span>
+      <span style={{ minWidth: 0, flex: 1 }}>
+        <span style={{ display: 'block', fontWeight: 700, fontSize: '0.88rem' }}>{titulo}</span>
+        <span style={{ display: 'block', fontSize: '0.75rem', color: theme.subtext }}>{detalle}</span>
+      </span>
+    </button>
+  );
+
+  const coberturaHoy = metricas.cajaHoy > 0 ? Math.round((metricas.baseGananciaHoy / metricas.cajaHoy) * 100) : 100;
+
+  const tareas = useMemo(() => [
+    { activo: metricas.pedidosPendientes > 0, titulo: `${metricas.pedidosPendientes} pedido(s) web sin resolver`, detalle: 'Revisar, preparar y cobrar', tab: 'pedidos_web', color: theme.warning, Ico: Icono.Pedidos },
+    { activo: metricas.productosAgotados > 0, titulo: `${metricas.productosAgotados} producto(s) agotados`, detalle: 'No aparecen en la web ni en el catálogo', tab: 'stock', color: theme.danger, Ico: Icono.Inventario },
+    { activo: metricas.clientesConDeuda > 0, titulo: `${metricas.clientesConDeuda} cliente(s) con deuda`, detalle: `Total a cobrar: ${pesos(metricas.totalCalle)}`, tab: 'clientes', color: theme.info, Ico: Icono.CuentaCorriente },
+    { activo: metricas.cajaSinCerrar, titulo: 'La caja de hoy no está cerrada', detalle: 'Hacé el cierre antes de que termine el día', tab: 'caja', color: theme.accent, Ico: Icono.Caja }
+  ].filter((t) => t.activo), [metricas, theme]);
 
   if (cargando) {
-    return <p style={{ color: theme.subtext, textAlign: 'center', marginTop: '40px', fontWeight: 'bold' }}>⏳ Sincronizando balances históricos con precios de stock...</p>;
+    return (
+      <div style={{ width: '100%' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14, marginBottom: 18 }}>
+          <Cargando filas={1} alto={110} darkMode={darkMode} />
+          <Cargando filas={1} alto={110} darkMode={darkMode} />
+          <Cargando filas={1} alto={110} darkMode={darkMode} />
+          <Cargando filas={1} alto={110} darkMode={darkMode} />
+        </div>
+        <Cargando filas={4} alto={80} darkMode={darkMode} />
+      </div>
+    );
   }
 
+  const graficoTooltip = {
+    contentStyle: {
+      backgroundColor: theme.card, borderRadius: 12,
+      border: `1px solid ${theme.border}`, color: theme.text, fontSize: '0.8rem'
+    },
+    labelStyle: { color: theme.text, fontWeight: 700, marginBottom: 4 },
+    formatter: (valor: any, nombre: any, item: any) => {
+      const punto = item?.payload;
+      if (nombre === 'Ganancia (detalle)') {
+        const cobertura = punto?.BaseGanancia > 0 ? Math.round((punto.BaseGanancia / punto.Total) * 100) : 100;
+        return [`${pesos(valor)} (cubre el ${cobertura}% de la caja)`, 'Ganancia (detalle)'];
+      }
+      return [pesos(valor), nombre];
+    }
+  };
+
+  const ejeStyle = { fontSize: 11, fill: theme.subtext };
+
   return (
-    <div style={{ width: '100%', padding: '5px' }}>
-      
-      {/* HEADER DEL DASHBOARD */}
-      <div style={{ marginBottom: '30px' }}>
-        <h1 style={{ color: theme.text, margin: 0, fontSize: isMobile ? '1.8rem' : '2.2rem', fontWeight: 900 }}>{APP_TITLE}</h1>
-        <p style={{ color: theme.subtext, margin: '4px 0 0 0', fontSize: '0.95rem' }}>Análisis de rentabilidad y control financiero masivo</p>
+    <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+      {/* ---------- Encabezado ---------- */}
+      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+        <div>
+          <h2 style={{ margin: 0, fontSize: '1.3rem', fontWeight: 800, color: theme.text }}>Resumen del negocio</h2>
+          <p style={{ margin: '4px 0 0 0', fontSize: '0.85rem', color: theme.subtext }}>
+            Datos reales del sistema
+            {actualizado && <> · actualizado a las {actualizado.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}</>}
+          </p>
+        </div>
+        <button
+          onClick={() => { setRefrescando(true); cargarMetricasYBalances(true); }}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', borderRadius: 11,
+            border: `1px solid ${theme.border}`, background: theme.card, color: theme.text,
+            fontWeight: 700, fontSize: '0.84rem', cursor: 'pointer', minHeight: 42
+          }}
+        >
+          <Icono.Refrescar size={15} />
+          {refrescando ? 'Actualizando...' : 'Actualizar'}
+        </button>
       </div>
 
-      {/* RECUADROS DE MÉTRICAS */}
-      <div style={gridCardsStyle}>
-        <div style={cardStyle(theme.success)}>
-          <span style={{ color: theme.subtext, fontSize: '0.8rem', fontWeight: 'bold', letterSpacing: '0.5px' }}>CAJA DIARIA (HOY)</span>
-          <span style={{ color: theme.text, fontSize: '1.8rem', fontWeight: '900' }}>${metricas.ventasHoy.toLocaleString('es-AR')}</span>
-          <span style={{ color: theme.success, fontSize: '0.85rem' }}>📈 Entradas del día en tiempo real</span>
+      {/* ---------- Indicadores ---------- */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }}>
+        <Kpi
+          etiqueta="Caja de hoy"
+          valor={pesos(metricas.cajaHoy)}
+          detalle={`${metricas.ventasHoy} venta(s) del día`}
+          color={theme.success}
+          icono={<Icono.Precio size={16} />}
+        />
+        <Kpi
+          etiqueta="Ganancia del día"
+          valor={pesos(metricas.gananciaHoy)}
+          detalle={metricas.ventasHoySinDetalle > 0
+            ? `Cubre el ${coberturaHoy}% de la caja`
+            : 'Calculada sobre el detalle de ítems'}
+          color={theme.info}
+          icono={<Icono.Grafico size={16} />}
+        />
+        <Kpi
+          etiqueta="Total a cobrar"
+          valor={pesos(metricas.totalCalle)}
+          detalle={`${metricas.clientesConDeuda} de ${metricas.clientes} cliente(s)`}
+          color={theme.danger}
+          icono={<Icono.CuentaCorriente size={16} />}
+        />
+        <Kpi
+          etiqueta="Productos cargados"
+          valor={metricas.totalProductos.toLocaleString('es-AR')}
+          detalle={`${metricas.productosDisponibles} disponibles · ${metricas.productosAgotados} agotados`}
+          color={theme.mayorista}
+          icono={<Icono.Inventario size={16} />}
+        />
+      </div>
+
+      {/* ---------- Inventario + tareas ---------- */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16 }}>
+
+        {/* Stock real */}
+        <div style={tarjeta({ display: 'flex', flexDirection: 'column', gap: 14 })}>
+          <div>
+            <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: theme.text }}>Stock real de productos</h3>
+            <p style={{ margin: '2px 0 0 0', fontSize: '0.78rem', color: theme.subtext }}>Lo que hay cargado hoy en el sistema</p>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+            <span style={{ fontSize: '2.4rem', fontWeight: 800, color: theme.text, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', lineHeight: 1 }}>
+              {metricas.totalProductos.toLocaleString('es-AR')}
+            </span>
+            <span style={{ fontSize: '0.85rem', color: theme.subtext }}>artículos en catálogo</span>
+          </div>
+
+          <div style={{ height: 10, borderRadius: 999, background: theme.innerBox, overflow: 'hidden', display: 'flex' }}>
+            <div style={{ width: `${metricas.totalProductos ? (metricas.productosDisponibles / metricas.totalProductos) * 100 : 0}%`, background: theme.success }} />
+            <div style={{ width: `${metricas.totalProductos ? (metricas.productosAgotados / metricas.totalProductos) * 100 : 0}%`, background: theme.danger }} />
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: '0.82rem', color: theme.subtext }}>
+              <span style={{ width: 9, height: 9, borderRadius: 3, background: theme.success }} />
+              <strong style={{ color: theme.text }}>{metricas.productosDisponibles.toLocaleString('es-AR')}</strong> disponibles
+            </span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: '0.82rem', color: theme.subtext }}>
+              <span style={{ width: 9, height: 9, borderRadius: 3, background: theme.danger }} />
+              <strong style={{ color: theme.text }}>{metricas.productosAgotados.toLocaleString('es-AR')}</strong> agotados
+            </span>
+          </div>
+
+          <div style={{ borderTop: `1px solid ${theme.border}`, paddingTop: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '0.8rem', color: theme.subtext }}>Inversión cargada a costo</span>
+            <strong style={{ fontSize: '1.05rem', color: theme.text, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}>
+              {pesos(metricas.valorInventarioCosto)}
+            </strong>
+          </div>
         </div>
 
-        <div style={cardStyle(theme.danger)}>
-          <span style={{ color: theme.subtext, fontSize: '0.8rem', fontWeight: 'bold', letterSpacing: '0.5px' }}>TOTAL EN CALLE (CC)</span>
-          <span style={{ color: '#f87171', fontSize: '1.8rem', fontWeight: '900' }}>${metricas.totalCalle.toLocaleString('es-AR')}</span>
-          <span style={{ color: theme.subtext, fontSize: '0.85rem' }}>⚠️ Créditos a cobrar</span>
-        </div>
+        {/* Pendientes del día */}
+        <div style={tarjeta({ display: 'flex', flexDirection: 'column', gap: 12 })}>
+          <div>
+            <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: theme.text }}>Qué hay que hacer hoy</h3>
+            <p style={{ margin: '2px 0 0 0', fontSize: '0.78rem', color: theme.subtext }}>
+              {tareas.length === 0 ? 'Todo al día' : `${tareas.length} pendiente(s)`}
+            </p>
+          </div>
 
-        <div style={cardStyle(theme.accent)}>
-          <span style={{ color: theme.subtext, fontSize: '0.8rem', fontWeight: 'bold', letterSpacing: '0.5px' }}>ARTÍCULOS EN CATÁLOGO</span>
-          <span style={{ color: theme.text, fontSize: '1.8rem', fontWeight: '900' }}>{metricas.productosBajoStock}</span>
-          <span style={{ color: theme.subtext, fontSize: '0.85rem' }}>📦 Productos activos</span>
-        </div>
-
-        <div style={cardStyle(theme.accent)}>
-          <span style={{ color: theme.subtext, fontSize: '0.8rem', fontWeight: 'bold', letterSpacing: '0.5px' }}>CARTERA DE CLIENTES</span>
-          <span style={{ color: theme.text, fontSize: '1.8rem', fontWeight: '900' }}>{metricas.clientesActivos}</span>
-          <span style={{ color: theme.accent, fontSize: '0.85rem' }}>👥 Cuentas registradas</span>
+          {tareas.length === 0 ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '18px 14px', borderRadius: 14, background: theme.innerBox, color: theme.success, fontWeight: 700 }}>
+              <Icono.Confirmar size={20} />
+              No hay nada pendiente. Todo en orden.
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {tareas.map((t) => pendiente(t.titulo, t.detalle, t.tab, t.color, t.Ico))}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* SECCIÓN DE GRÁFICOS COMPARATIVOS */}
-      <div style={gridGraficosStyle}>
-        
-        {/* Gráfico 1: Rendimiento Semanal */}
-        <div style={chartContainerStyle}>
-          <h3 style={{ color: theme.text, margin: '0 0 20px 15px', fontSize: '1.1rem', fontWeight: '800' }}>📅 RENDIMIENTO SEMANAL</h3>
-          <ResponsiveContainer width="100%" height="90%">
-            <BarChart data={metricas.graficoSemana} barGap={4}>
-              <CartesianGrid strokeDasharray="3 3" stroke={darkMode ? '#334155' : '#e2e8f0'} vertical={false} />
-              <XAxis dataKey="fecha" stroke={theme.subtext} tick={{ fontSize: 12, fontWeight: '600' }} tickLine={false} />
-              <YAxis stroke={theme.subtext} tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
-              <Tooltip 
-                contentStyle={{ backgroundColor: theme.card, borderRadius: '12px', border: `1px solid ${theme.border}`, color: theme.text }}
-                formatter={(value: any) => [`$${Number(value).toLocaleString('es-AR')}`]}
-              />
-              <Legend verticalAlign="top" height={36} iconType="circle" wrapperStyle={{ fontSize: '13px', fontWeight: 'bold' }} />
-              <Bar dataKey="Total" fill="#3b82f6" radius={[6, 6, 0, 0]} name="Caja Bruta Total" />
-              <Bar dataKey="Ganancia" fill="#10b981" radius={[6, 6, 0, 0]} name="Ganancia Real Neta" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+      {/* ---------- Gráficos ---------- */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(330px, 1fr))', gap: 16 }}>
+        {[
+          { titulo: 'Últimos 7 días', datos: metricas.graficoSemana, clave: 'fecha' },
+          { titulo: 'Últimos 6 meses', datos: metricas.graficoMeses, clave: 'fecha' }
+        ].map((g) => (
+          <div key={g.titulo} style={tarjeta({ height: 340, display: 'flex', flexDirection: 'column' })}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 4 }}>
+              <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 800, color: theme.text }}>{g.titulo}</h3>
+              <div style={{ display: 'flex', gap: 12, fontSize: '0.72rem', color: theme.subtext }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <span style={{ width: 9, height: 9, borderRadius: 2, background: theme.accent }} /> Caja
+                </span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <span style={{ width: 9, height: 9, borderRadius: 2, background: theme.success }} /> Ganancia
+                </span>
+              </div>
+            </div>
 
-        {/* Gráfico 2: Rendimiento Mensual */}
-        <div style={chartContainerStyle}>
-          <h3 style={{ color: theme.text, margin: '0 0 20px 15px', fontSize: '1.1rem', fontWeight: '800' }}>📈 EVOLUCIÓN MENSUAL (ÚLTIMOS 6 MESES)</h3>
-          <ResponsiveContainer width="100%" height="90%">
-            <BarChart data={metricas.graficoMeses} barGap={4}>
-              <CartesianGrid strokeDasharray="3 3" stroke={darkMode ? '#334155' : '#e2e8f0'} vertical={false} />
-              <XAxis dataKey="mes" stroke={theme.subtext} tick={{ fontSize: 12, fontWeight: '600' }} tickLine={false} />
-              <YAxis stroke={theme.subtext} tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
-              <Tooltip 
-                contentStyle={{ backgroundColor: theme.card, borderRadius: '12px', border: `1px solid ${theme.border}`, color: theme.text }}
-                formatter={(value: any) => [`$${Number(value).toLocaleString('es-AR')}`]}
-              />
-              <Legend verticalAlign="top" height={36} iconType="circle" wrapperStyle={{ fontSize: '13px', fontWeight: 'bold' }} />
-              <Bar dataKey="Total" fill="#8b5cf6" radius={[6, 6, 0, 0]} name="Caja Bruta Total" />
-              <Bar dataKey="Ganancia" fill="#10b981" radius={[6, 6, 0, 0]} name="Ganancia Real Neta" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
+            <div style={{ flex: 1, minHeight: 0 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={g.datos} barGap={4} margin={{ top: 16, right: 8, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={theme.border} vertical={false} />
+                  <XAxis dataKey={g.clave} stroke={theme.subtext} tick={ejeStyle} tickLine={false} axisLine={{ stroke: theme.border }} />
+                  <YAxis stroke={theme.subtext} tick={ejeStyle} tickLine={false} axisLine={false} width={58}
+                    tickFormatter={(v: number) => `$${v >= 1000 ? `${Math.round(v / 1000)}k` : v}`} />
+                  <Tooltip {...graficoTooltip} cursor={{ fill: theme.hover }} />
+                  <Bar dataKey="Total" fill={theme.accent} radius={[6, 6, 0, 0]} name="Caja" maxBarSize={34} />
+                  <Bar dataKey="Ganancia" fill={theme.success} radius={[6, 6, 0, 0]} name="Ganancia (detalle)" maxBarSize={34} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        ))}
       </div>
 
+      {/* ---------- Nota de transparencia ---------- */}
+      {metricas.ventasHoySinDetalle > 0 && (
+        <div style={{
+          display: 'flex', gap: 11, alignItems: 'flex-start', padding: '13px 15px', borderRadius: 14,
+          background: theme.innerBox, border: `1px solid ${theme.border}`,
+          fontSize: '0.82rem', color: theme.subtext, lineHeight: 1.5
+        }}>
+          <span style={{ color: theme.warning, flexShrink: 0 }}><Icono.Info size={17} /></span>
+          <span>
+            <strong style={{ color: theme.text }}>Cómo leer la ganancia:</strong> se calcula únicamente sobre las ventas
+            que guardaron el detalle de los ítems vendidos ({pesos(metricas.baseGananciaHoy)} de los {pesos(metricas.cajaHoy)} del día).
+            Las {metricas.ventasHoySinDetalle} venta(s) sin detalle ({pesos(metricas.cajaHoy - metricas.baseGananciaHoy)}) se muestran
+            en la caja pero no se estiman como ganancia, para no inventar un número.
+          </span>
+        </div>
+      )}
     </div>
   );
 }
