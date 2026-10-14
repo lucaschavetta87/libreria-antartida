@@ -13,8 +13,9 @@ import CierreCaja from "../components/CierreCaja";
 import GestionUsuarios from "../components/GestiondeUsuarios"; 
 import PedidosWeb from "../components/PedidosWeb";
 import GestionPortada from "../components/GestionPortada";
-import { crearTema, COLORES, TITULOS_APP } from "../lib/theme";
 import { paddingContenido } from "../lib/ui";
+import { useToast } from "../components/ui/Avisos";
+import { useTema } from "../components/ui/TemaGlobal";
 
 // Tipos
 interface StockItem { id: number; nombre: string; cantidad: number; [key: string]: any; }
@@ -24,15 +25,6 @@ type TabKey = "inicio" | "stock" | "ventas" | "ventas_mayoristas" | "pedidos_web
 
 const APP_TITLE = "Pueblos del Mundo";
 
-// El tema se persiste y se aplica con [data-theme] en <html> (ver layout.tsx).
-const leerTemaGuardado = (): boolean => {
-  if (typeof window === 'undefined') return true;
-  const guardado = window.localStorage.getItem('tema');
-  if (guardado === 'oscuro') return true;
-  if (guardado === 'claro') return false;
-  return true;
-};
-
 export const dynamic = "force-dynamic";
 
 export default function Home() {
@@ -40,7 +32,6 @@ export default function Home() {
   const [user, setUser] = useState("");
   const [pass, setPass] = useState("");
   const [usuarioActivo, setUsuarioActivo] = useState<any | null>(null); 
-  const [darkMode, setDarkMode] = useState<boolean>(leerTemaGuardado);
   const [activeTab, setActiveTab] = useState<TabKey>("inicio");
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [ventas, setVentas] = useState<Venta[]>([]);
@@ -48,26 +39,15 @@ export default function Home() {
   const [ordenes, setOrdenes] = useState<Orden[]>([]);
   const [stock, setStock] = useState<StockItem[]>([]);
   const [loading, setLoading] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
 
-  const theme = crearTema(darkMode);
+  // Tema y responsive vienen del proveedor raíz (antes se duplicaban por archivo).
+  const { darkMode, setDarkMode, theme, esMovil: isMobile } = useTema();
+  const toast = useToast();
 
-  // Mantiene <html data-theme> alineado con el estado y guarda la preferencia.
+  // En el celular la sidebar no se usa (la navegación vive en el menú del Topbar).
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light');
-    try { window.localStorage.setItem('tema', darkMode ? 'oscuro' : 'claro'); } catch { /* modo privado */ }
-  }, [darkMode]);
-
-  useEffect(() => {
-    const checkResponsiveness = () => {
-      const mobileView = window.innerWidth <= 768;
-      setIsMobile(mobileView);
-      if (mobileView) setIsSidebarCollapsed(true);
-    };
-    checkResponsiveness();
-    window.addEventListener("resize", checkResponsiveness);
-    return () => window.removeEventListener("resize", checkResponsiveness);
-  }, []);
+    if (isMobile) setIsSidebarCollapsed(true);
+  }, [isMobile, setIsSidebarCollapsed]);
 
   useEffect(() => { if (isAuthenticated) cargarDatos(); }, [isAuthenticated]);
 
@@ -125,7 +105,7 @@ export default function Home() {
         .single();
 
       if (error || !data) {
-        alert("Usuario o contraseña incorrectos");
+        toast.error("Usuario o contraseña incorrectos");
       } else {
         setUsuarioActivo({
           nombre: data.nombre,
@@ -136,7 +116,7 @@ export default function Home() {
         setActiveTab("inicio");
       }
     } catch (err) {
-      alert("Error al conectar con el servidor de autenticación");
+      toast.error("Error al conectar con el servidor de autenticación");
     }
   };
 

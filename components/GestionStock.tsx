@@ -15,6 +15,7 @@ import MenuCatalogoCompleto, { OpcionesCatalogoCompleto } from './MenuCatalogoCo
 import { normalizarCodigo } from '../lib/codigobarras';
 import { dibujarEtiquetasEnDoc } from '../lib/etiquetasPdf';
 import { prepararImagenRedimensionada, subirArchivoAStorage } from '../lib/imageUtils';
+import { useToast } from './ui/Avisos';
 
 const CATEGORIAS_PRINCIPALES = [
   { id: 'aromanza', label: 'Aromanza' },
@@ -71,6 +72,7 @@ const capitalizar = (t: string) => t.replace(/\S+/g, (w) => w.charAt(0).toUpperC
 const nuevoId = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
 
 function ModalImportarExcel({ isOpen, onClose, categorias, stock, setStock, darkMode, setSel }: any) {
+  const toast = useToast();
   const [archivoNombre, setArchivoNombre] = useState('');
   const [libroTrabajo, setLibroTrabajo] = useState<XLSX.WorkBook | null>(null);
   const [hojas, setHojas] = useState<string[]>([]);
@@ -147,7 +149,7 @@ function ModalImportarExcel({ isOpen, onClose, categorias, stock, setStock, dark
           seleccionarHoja(libro, libro.SheetNames[0]);
         }
       } catch (err) {
-        alert("Error al leer el archivo Excel.");
+        toast.error("Error al leer el archivo Excel.");
       }
     };
   };
@@ -213,7 +215,7 @@ function ModalImportarExcel({ isOpen, onClose, categorias, stock, setStock, dark
           setListaCategorias(prev => [...prev, data]);
           setCategoriaSeleccionada(data.id);
         } else {
-          alert('Error al crear categoría en la base de datos.');
+          toast.error("Error al crear categoría en la base de datos.");
         }
       }
     } else {
@@ -225,7 +227,7 @@ function ModalImportarExcel({ isOpen, onClose, categorias, stock, setStock, dark
 
   const manejarCambioSubcategoria = async (val: string) => {
     if (val === 'NUEVA') {
-      if (!categoriaSeleccionada) return alert("Seleccioná una categoría principal primero.");
+      if (!categoriaSeleccionada) return toast.avisar("Seleccioná una categoría principal primero.", 'alerta');
       const nombre = window.prompt('Nombre de la nueva subcategoría:');
       if (nombre && nombre.trim()) {
         const { data, error } = await supabase.from('subcategorias').insert([{ categoria: categoriaSeleccionada, nombre: nombre.trim() }]).select().single();
@@ -234,7 +236,7 @@ function ModalImportarExcel({ isOpen, onClose, categorias, stock, setStock, dark
           setSubcategoriaSeleccionada(data.nombre.toLowerCase());
           setSubsubSeleccionada('');
         } else {
-          alert('Error al crear subcategoría.');
+          toast.error("Error al crear subcategoría.");
         }
       }
     } else {
@@ -245,8 +247,8 @@ function ModalImportarExcel({ isOpen, onClose, categorias, stock, setStock, dark
 
   const manejarCambioSubsub = async (val: string) => {
     if (val === 'NUEVA') {
-      if (!categoriaSeleccionada) return alert("Seleccioná una categoría principal primero.");
-      if (!subcategoriaSeleccionada) return alert("Seleccioná una subcategoría primero.");
+      if (!categoriaSeleccionada) return toast.avisar("Seleccioná una categoría principal primero.", 'alerta');
+      if (!subcategoriaSeleccionada) return toast.avisar("Seleccioná una subcategoría primero.", 'alerta');
       const nombre = window.prompt('Nombre de la nueva subcarpeta:');
       if (nombre && nombre.trim()) {
         const { data, error } = await supabase.from('subsubcategorias').insert([{ categoria: categoriaSeleccionada, subcategoria: subcategoriaSeleccionada, nombre: nombre.trim() }]).select().single();
@@ -254,7 +256,7 @@ function ModalImportarExcel({ isOpen, onClose, categorias, stock, setStock, dark
           setSubsubsDB(prev => [...prev, data]);
           setSubsubSeleccionada(String(data.nombre).trim().toLowerCase());
         } else {
-          alert('Error al crear subcarpeta.');
+          toast.error("Error al crear subcarpeta.");
         }
       }
     } else {
@@ -264,7 +266,7 @@ function ModalImportarExcel({ isOpen, onClose, categorias, stock, setStock, dark
 
   const procesarImportacion = async () => {
     if (colNombre === '') {
-      alert("Por favor, indicá al menos la columna de 'Nombre / Artículo'.");
+      toast.avisar("Por favor, indicá al menos la columna de 'Nombre / Artículo'.", 'alerta');
       return;
     }
     setImportando(true);
@@ -399,10 +401,10 @@ function ModalImportarExcel({ isOpen, onClose, categorias, stock, setStock, dark
       });
 
       setSel({ cat: categoriaSeleccionada, sub: subcategoriaSeleccionada ? subcategoriaSeleccionada.toLowerCase() : null, subsub: subsubSeleccionada || null });
-      alert(`✅ ¡Importación finalizada!\n- Productos actualizados: ${totalModificados}\n- Productos nuevos creados: ${totalCreados}`);
+      toast.exito(`Importación finalizada. Productos actualizados: ${totalModificados} · Nuevos creados: ${totalCreados}`, 8000);
       onClose();
     } catch (err: any) { 
-      alert(`❌ ERROR DE BASE DE DATOS:\n${err.message}`); 
+      toast.error(`Error de base de datos: ${err.message}`);
     } finally { 
       setImportando(false); 
     }
@@ -411,11 +413,11 @@ function ModalImportarExcel({ isOpen, onClose, categorias, stock, setStock, dark
   const procesarImportacionVariedades = async () => {
     const nombreProducto = nombreProductoVariedades.trim();
     if (!nombreProducto) {
-      alert("Escribí el nombre del producto principal.");
+      toast.avisar("Escribí el nombre del producto principal.", 'alerta');
       return;
     }
     if (colNombre === '') {
-      alert("Indicá cuál es la columna que tiene el nombre / artículos.");
+      toast.avisar("Indicá cuál es la columna que tiene el nombre / artículos.", 'alerta');
       return;
     }
     setImportando(true);
@@ -470,7 +472,7 @@ function ModalImportarExcel({ isOpen, onClose, categorias, stock, setStock, dark
       }
 
       if (variedadesNuevas.length === 0) {
-        alert("No se encontró ninguna variedad para importar.");
+        toast.error("No se encontró ninguna variedad para importar.");
         setImportando(false);
         return;
       }
@@ -551,10 +553,10 @@ function ModalImportarExcel({ isOpen, onClose, categorias, stock, setStock, dark
       }
 
       setSel({ cat: categoriaSeleccionada, sub: subcategoriaSeleccionada ? subcategoriaSeleccionada.toLowerCase() : null, subsub: subsubSeleccionada || null });
-      alert(`✅ ¡Listo!\nProducto principal: "${nombreProducto}"\nGuardado en la carpeta seleccionada.\nVariedades agrupadas: ${variedadesFinal.length}`);
+      toast.exito(`Listo. Producto principal: "${nombreProducto}" · Variedades agrupadas: ${variedadesFinal.length}`, 8000);
       onClose();
     } catch (err: any) {
-      alert(`❌ ERROR DE BASE DE DATOS:\n${err.message}`);
+      toast.error(`Error de base de datos: ${err.message}`);
     } finally {
       setImportando(false);
     }
@@ -748,6 +750,7 @@ function ModalImportarExcel({ isOpen, onClose, categorias, stock, setStock, dark
 }
 
 function ModalDetalle({ item, darkMode, onClose, onEdit, onDelete, obtenerLabelCategoria, onAgregarAlCarrito, onCodigoChange }: any) {
+  const toast = useToast();
   const [variedadSeleccionada, setVariedadSeleccionada] = useState<string | null>(null);
   const [cantidad, setCantidad] = useState<number>(1);
   const [editandoCodigo, setEditandoCodigo] = useState(false);
@@ -938,7 +941,7 @@ function ModalDetalle({ item, darkMode, onClose, onEdit, onDelete, obtenerLabelC
           </div>
           <div style={{ display: 'flex', gap: '10px', flexDirection: 'column' }}>
             {onAgregarAlCarrito && !item.sin_stock && (
-              <button onClick={() => { if (variedades.length > 0 && !variedadSeleccionada) { alert("Por favor, seleccioná una variedad antes de agregar."); return; } const variedadObj = variedades.find(v => v.id === variedadSeleccionada); onAgregarAlCarrito(item, cantidad, variedadObj); onClose(); }} style={{ width: '100%', padding: '14px', borderRadius: '12px', border: 'none', backgroundColor: '#10b981', color: 'white', fontWeight: '800', cursor: 'pointer', fontSize: '1rem' }}>🛒 Agregar al Carrito</button>
+              <button onClick={() => { if (variedades.length > 0 && !variedadSeleccionada) { toast.avisar("Por favor, seleccioná una variedad antes de agregar.", 'alerta'); return; } const variedadObj = variedades.find(v => v.id === variedadSeleccionada); onAgregarAlCarrito(item, cantidad, variedadObj); onClose(); }} style={{ width: '100%', padding: '14px', borderRadius: '12px', border: 'none', backgroundColor: '#10b981', color: 'white', fontWeight: '800', cursor: 'pointer', fontSize: '1rem' }}>🛒 Agregar al Carrito</button>
             )}
             {item.sin_stock && (
               <div style={{ width: '100%', padding: '14px', borderRadius: '12px', border: 'none', backgroundColor: '#4b5563', color: 'white', fontWeight: '800', textAlign: 'center', fontSize: '1rem' }}>PRODUCTO AGOTADO</div>
@@ -955,6 +958,7 @@ function ModalDetalle({ item, darkMode, onClose, onEdit, onDelete, obtenerLabelC
 }
 
 function VariedadesEditor({ variedades, onChange, darkMode, subirImagen }: any) {
+  const toast = useToast();
   const [subiendoId, setSubiendoId] = useState<string | null>(null);
   const [textoComas, setTextoComas] = useState('');
 
@@ -987,7 +991,7 @@ function VariedadesEditor({ variedades, onChange, darkMode, subirImagen }: any) 
     const url = await subirImagen(archivo);
     setSubiendoId(null);
     if (url) actualizar(id, { imagen_url: url });
-    else alert('No se pudo subir la foto de la variedad.');
+    else toast.error('No se pudo subir la foto de la variedad.');
     e.target.value = '';
   };
 
@@ -1307,6 +1311,8 @@ function PanelCarpetas({
 }
 
 export default function Stock({ stock = [], setStock, darkMode = true }: any) {
+  const toast = useToast();
+  const { confirmar } = toast;
   const [form, setForm] = useState({ id: '', codigo: '', nombre: '', precio_costo: '', precio_iva: '', precio_mayorista: '', precio_minorista: '', precio_promo: '', imagen_url: '', categoria: 'aromanza', subcategoria: '', subsubcategoria: '', variedades: [] as Variedad[], sin_stock: false });
   const [editando, setEditando] = useState(false);
   const [imagenArchivo, setImagenArchivo] = useState<File | null>(null);
@@ -2030,8 +2036,8 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
       else setStock([...(stock || []), dataRes]);
       
       resetForm();
-      alert("✨ Producto guardado correctamente.");
-    } catch (err: any) { alert("Error al guardar: " + err.message); } 
+      toast.exito("Producto guardado correctamente.");
+    } catch (err: any) { toast.error("Error al guardar: " + err.message); } 
     finally { setSubiendoImagen(false); }
   };
 
@@ -2060,12 +2066,12 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
   };
 
   const borrarItem = async (id: string) => {
-    if (window.confirm("¿Seguro que querés eliminar este artículo?")) {
+    if (await confirmar({ titulo: 'Eliminar artículo', mensaje: '¿Seguro que querés eliminar este artículo?', textoOk: 'Eliminar', peligro: true })) {
       try {
         const { error } = await supabase.from('stock').delete().eq('id', id);
         if (error) throw error;
         setStock((stock || []).filter((item: any) => item.id !== id));
-      } catch (err: any) { alert("Error al eliminar: " + err.message); }
+      } catch (err: any) { toast.error("Error al eliminar: " + err.message); }
     }
   };
 
@@ -2078,7 +2084,7 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
   const crearCategoria = async (nombre: string, imagenArchivo?: File | null, imagenUrl?: string) => {
     const nombreLimpio = nombre.trim();
     if (!nombreLimpio) {
-      alert('Ingresá un nombre.');
+      toast.avisar('Ingresá un nombre.', 'alerta');
       return false;
     }
     const id = nombreLimpio.toLowerCase().replace(/\s+/g, '_').replace(/[^\w-]/g, '');
@@ -2087,7 +2093,7 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
       if (imagenArchivo) {
         const urlSubida = await subirImagen(imagenArchivo);
         if (!urlSubida) {
-          alert('No se pudo subir la imagen de la categoría.');
+          toast.error('No se pudo subir la imagen de la categoría.');
           return false;
         }
         imagenFinal = urlSubida;
@@ -2097,7 +2103,7 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
       await cargarCategorias();
       return true;
     } catch (err: any) {
-      alert('Error: ' + err.message);
+      toast.error('Error: ' + err.message);
       return false;
     }
   };
@@ -2105,7 +2111,7 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
   const actualizarCategoria = async (id: string, nuevoLabel: string, imagenArchivo?: File | null, imagenUrl?: string) => {
     const labelLimpio = nuevoLabel.trim();
     if (!labelLimpio) {
-      alert('Ingresá un nombre.');
+      toast.avisar('Ingresá un nombre.', 'alerta');
       return false;
     }
     try {
@@ -2113,7 +2119,7 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
       if (imagenArchivo) {
         const urlSubida = await subirImagen(imagenArchivo);
         if (!urlSubida) {
-          alert('No se pudo subir la imagen de la categoría.');
+          toast.error('No se pudo subir la imagen de la categoría.');
           return false;
         }
         imagenFinal = urlSubida;
@@ -2123,7 +2129,7 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
       await cargarCategorias();
       return true;
     } catch (err: any) {
-      alert('Error: ' + err.message);
+      toast.error('Error: ' + err.message);
       return false;
     }
   };
@@ -2133,7 +2139,7 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
       const { error } = await supabase.from('categorias').delete().eq('id', id);
       if (error) throw error;
       await cargarCategorias();
-    } catch (err: any) { alert('Error: ' + err.message); }
+    } catch (err: any) { toast.error('Error: ' + err.message); }
   };
 
   // Renombra la etiqueta visible de una categoría. El `id` no se toca, así que
@@ -2147,7 +2153,7 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
       await cargarCategorias();
       setMensajeEstado(`✅ Categoría renombrada a "${labelLimpio}"`);
       setTimeout(() => setMensajeEstado(''), 4000);
-    } catch (err: any) { alert('Error: ' + err.message); }
+    } catch (err: any) { toast.error('Error: ' + err.message); }
   };
 
   // Elimina la categoría y sus subcarpetas. Los productos NO se borran: quedan
@@ -2159,7 +2165,7 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
         `sin categoría visible en el panel hasta que los muevas a otra carpeta.\n\n` +
         `¿Querés continuar igual?`
       : `Se va a eliminar la categoría "${label}" y sus subcarpetas.\n\n¿Querés continuar?`;
-    if (!window.confirm(msg)) return;
+    if (!(await confirmar({ titulo: 'Eliminar categoría', mensaje: msg.replace(/\n+/g, ' '), textoOk: 'Sí, eliminar', peligro: true }))) return;
     try {
       await supabase.from('subcategorias').delete().eq('categoria', id);
       await supabase.from('subsubcategorias').delete().eq('categoria', id);
@@ -2169,7 +2175,7 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
       setSel({ cat: '', sub: null });
       setMensajeEstado(`🗑️ Categoría "${label}" eliminada`);
       setTimeout(() => setMensajeEstado(''), 4000);
-    } catch (err: any) { alert('Error: ' + err.message); }
+    } catch (err: any) { toast.error('Error: ' + err.message); }
   };
 
   const conteos = useMemo(() => {
@@ -2214,7 +2220,7 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
   const crearSubcategoria = async (catId: string, nombre: string) => {
     const limpio = nombre.trim();
     if (!limpio) return;
-    if (subsDe(catId).some(s => s.key === limpio.toLowerCase())) return alert('Ya existe una carpeta con ese nombre.');
+    if (subsDe(catId).some(s => s.key === limpio.toLowerCase())) return toast.avisar('Ya existe una carpeta con ese nombre.', 'alerta');
     try {
       const { data, error } = await supabase.from('subcategorias').insert([{ categoria: catId, nombre: limpio }]).select().single();
       if (error) throw error;
@@ -2229,7 +2235,7 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
   const crearSubsubcategoria = async (catId: string, subKey: string, nombre: string) => {
     const limpio = nombre.trim();
     if (!limpio) return;
-    if (subsubsDe(catId, subKey).some(s => s.key === limpio.toLowerCase())) return alert('Ya existe una subcarpeta con ese nombre.');
+    if (subsubsDe(catId, subKey).some(s => s.key === limpio.toLowerCase())) return toast.avisar('Ya existe una subcarpeta con ese nombre.', 'alerta');
     try {
       const { data, error } = await supabase.from('subsubcategorias').insert([{ categoria: catId, subcategoria: subKey, nombre: limpio }]).select().single();
       if (error) throw error;
@@ -2246,7 +2252,7 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
     if (!nuevo || !nuevo.trim() || nuevo.trim() === hijo.label) return;
     const nuevoLimpio = nuevo.trim();
     const nuevoKey = nuevoLimpio.toLowerCase();
-    if (nuevoKey !== hijo.key && subsubsDe(catId, subKey).some(s => s.key === nuevoKey)) return alert('Ya existe.');
+    if (nuevoKey !== hijo.key && subsubsDe(catId, subKey).some(s => s.key === nuevoKey)) return toast.avisar('Ya existe una carpeta con ese nombre.', 'alerta');
     try {
       const { error: errStock } = await supabase.from('stock').update({ subsubcategoria: nuevoKey }).eq('categoria', catId).eq('subcategoria', subKey).eq('subsubcategoria', hijo.key);
       if (errStock) throw errStock;
@@ -2259,12 +2265,12 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
       setSubsubLocales(prev => prev.filter(x => !(String(x.categoria).toLowerCase() === catId && String(x.subcategoria).toLowerCase() === subKey && String(x.nombre).trim().toLowerCase() === hijo.key)));
       setStock((stock || []).map((it: any) => String(it.categoria).toLowerCase() === catId && String(it.subcategoria || '').toLowerCase().trim() === subKey && String(it.subsubcategoria || '').toLowerCase().trim() === hijo.key ? { ...it, subsubcategoria: nuevoKey } : it));
       setSel({ cat: catId, sub: subKey, subsub: nuevoKey });
-    } catch (err: any) { alert('Error: ' + err.message); }
+    } catch (err: any) { toast.error('Error: ' + err.message); }
   };
 
   const eliminarSubsubcategoria = async (catId: string, subKey: string, hijo: { key: string; label: string; count: number }) => {
     const aviso = hijo.count > 0 ? `¿Eliminar la subcarpeta "${hijo.label}"?\nLos ${hijo.count} productos NO se borran.` : `¿Eliminar la subcarpeta vacía "${hijo.label}"?`;
-    if (!window.confirm(aviso)) return;
+    if (!(await confirmar({ titulo: 'Eliminar subcarpeta', mensaje: aviso.replace(/\n+/g, ' '), textoOk: 'Sí, eliminar', peligro: true }))) return;
     try {
       const { error: errStock } = await supabase.from('stock').update({ subsubcategoria: null }).eq('categoria', catId).eq('subcategoria', subKey).eq('subsubcategoria', hijo.key);
       if (errStock) throw errStock;
@@ -2274,7 +2280,7 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
       setSubsubLocales(prev => prev.filter(x => !(String(x.categoria).toLowerCase() === catId && String(x.subcategoria).toLowerCase() === subKey && String(x.nombre).trim().toLowerCase() === hijo.key)));
       setStock((stock || []).map((it: any) => String(it.categoria).toLowerCase() === catId && String(it.subcategoria || '').toLowerCase().trim() === subKey && String(it.subsubcategoria || '').toLowerCase().trim() === hijo.key ? { ...it, subsubcategoria: null } : it));
       setSel({ cat: catId, sub: subKey, subsub: null });
-    } catch (err: any) { alert('Error: ' + err.message); }
+    } catch (err: any) { toast.error('Error: ' + err.message); }
   };
 
   const renombrarSubcategoria = async (catId: string, sub: { key: string; label: string }) => {
@@ -2282,7 +2288,7 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
     if (!nuevo || !nuevo.trim() || nuevo.trim() === sub.label) return;
     const nuevoLimpio = nuevo.trim();
     const nuevoKey = nuevoLimpio.toLowerCase();
-    if (nuevoKey !== sub.key && subsDe(catId).some(s => s.key === nuevoKey)) return alert('Ya existe.');
+    if (nuevoKey !== sub.key && subsDe(catId).some(s => s.key === nuevoKey)) return toast.avisar('Ya existe una carpeta con ese nombre.', 'alerta');
     try {
       const { error: errStock } = await supabase.from('stock').update({ subcategoria: nuevoKey }).eq('categoria', catId).eq('subcategoria', sub.key);
       if (errStock) throw errStock;
@@ -2298,12 +2304,12 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
       setSubsubLocales(prev => prev.map(x => String(x.categoria).toLowerCase() === catId && String(x.subcategoria).toLowerCase() === sub.key ? { ...x, subcategoria: nuevoKey } : x));
       setStock((stock || []).map((it: any) => String(it.categoria).toLowerCase() === catId && String(it.subcategoria || '').toLowerCase().trim() === sub.key ? { ...it, subcategoria: nuevoKey } : it));
       setSel({ cat: catId, sub: nuevoKey, subsub: null });
-    } catch (err: any) { alert('Error: ' + err.message); }
+    } catch (err: any) { toast.error('Error: ' + err.message); }
   };
 
   const eliminarSubcategoria = async (catId: string, sub: { key: string; label: string; count: number }) => {
     const aviso = sub.count > 0 ? `¿Eliminar la carpeta "${sub.label}"?\nLos ${sub.count} productos NO se borran.` : `¿Eliminar la carpeta vacía "${sub.label}"?`;
-    if (!window.confirm(aviso)) return;
+    if (!(await confirmar({ titulo: 'Eliminar carpeta', mensaje: aviso.replace(/\n+/g, ' '), textoOk: 'Sí, eliminar', peligro: true }))) return;
     try {
       let { error: errStock } = await supabase.from('stock').update({ subcategoria: null, subsubcategoria: null }).eq('categoria', catId).eq('subcategoria', sub.key);
       if (errStock && /column|schema cache/i.test(String(errStock.message || ''))) {
@@ -2319,7 +2325,7 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
       setSubsubLocales(prev => prev.filter(x => !(String(x.categoria).toLowerCase() === catId && String(x.subcategoria).toLowerCase() === sub.key)));
       setStock((stock || []).map((it: any) => String(it.categoria).toLowerCase() === catId && String(it.subcategoria || '').toLowerCase().trim() === sub.key ? { ...it, subcategoria: null, subsubcategoria: null } : it));
       setSel({ cat: catId, sub: null, subsub: null });
-    } catch (err: any) { alert('Error: ' + err.message); }
+    } catch (err: any) { toast.error('Error: ' + err.message); }
   };
 
   const iniciarArrastre = (e: React.DragEvent, item: any) => {
@@ -2352,11 +2358,11 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
       if (subsubKey) destino += ` › ${labelSubSub}`;
       setMensajeEstado(`✅ ${ids.length} productos movidos a ${destino}`);
       setTimeout(() => setMensajeEstado(''), 4000);
-    } catch (err: any) { alert('No se pudieron mover: ' + err.message); }
+    } catch (err: any) { toast.error('No se pudieron mover: ' + err.message); }
   };
 
   const eliminarSeleccionados = async () => {
-    if (!window.confirm(`¿Seguro que querés ELIMINAR ${seleccionados.length} productos?\nEsta acción no se puede deshacer.`)) return;
+    if (!(await confirmar({ titulo: `Eliminar ${seleccionados.length} producto(s)`, mensaje: 'Esta acción no se puede deshacer.', textoOk: 'Sí, eliminar', peligro: true }))) return;
     try {
       const { error } = await supabase.from('stock').delete().in('id', seleccionados);
       if (error) throw error;
@@ -2364,7 +2370,7 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
       setSeleccionados([]);
       setMensajeEstado(`✅ ${seleccionados.length} productos eliminados definitivamente.`);
       setTimeout(() => setMensajeEstado(''), 4000);
-    } catch (err: any) { alert("Error al eliminar: " + err.message); }
+    } catch (err: any) { toast.error("Error al eliminar: " + err.message); }
   };
 
   const cambiarEstadoStockMasivo = async (estadoSinStock: boolean) => {
@@ -2377,7 +2383,7 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
       setSeleccionados([]);
       setMensajeEstado(`✅ Stock actualizado correctamente.`);
       setTimeout(() => setMensajeEstado(''), 4000);
-    } catch (err: any) { alert('Error al actualizar stock: ' + err.message); }
+    } catch (err: any) { toast.error('Error al actualizar stock: ' + err.message); }
   };
 
   const moverCarpeta = async (catOrigen: string, subKey: string, catDestino: string) => {
@@ -2385,7 +2391,7 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
     const destino = String(catDestino).toLowerCase();
     if (!subKey || origen === destino) return;
     const existeDestino = subsDe(destino).some(s => s.key === subKey);
-    if (existeDestino && !window.confirm(`¿Combinar productos en la carpeta "${capitalizar(subKey)}" existente en ${obtenerLabelCategoria(destino)}?`)) return;
+    if (existeDestino && !(await confirmar({ titulo: 'Combinar carpetas', mensaje: `¿Combinar productos en la carpeta "${capitalizar(subKey)}" existente en ${obtenerLabelCategoria(destino)}?`, textoOk: 'Combinar' }))) return;
     try {
       const { error } = await supabase.from('stock').update({ categoria: destino, ultima_actualizacion: new Date().toLocaleString() }).eq('categoria', origen).eq('subcategoria', subKey);
       if (error) throw error;
@@ -2403,7 +2409,7 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
       setSel({ cat: destino, sub: subKey, subsub: null });
       setMensajeEstado(`✅ Carpeta "${capitalizar(subKey)}" movida`);
       setTimeout(() => setMensajeEstado(''), 4000);
-    } catch (err: any) { alert('Error: ' + err.message); }
+    } catch (err: any) { toast.error('Error: ' + err.message); }
   };
 
   const categoriasOrdenadas = [

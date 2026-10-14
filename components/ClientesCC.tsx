@@ -2,8 +2,11 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../app/supabase';
+import { useToast } from './ui/Avisos';
 
 export default function ClientesCC({ darkMode = true }: { darkMode?: boolean }) {
+  const toast = useToast();
+  const { confirmar } = toast;
   const [clientes, setClientes] = useState<any[]>([]);
   const [nombre, setNombre] = useState('');
   const [telefono, setTelefono] = useState('');
@@ -112,21 +115,21 @@ export default function ClientesCC({ darkMode = true }: { darkMode?: boolean }) 
   };
 
   const crearCliente = async () => {
-    if (!nombre.trim()) return alert("Por favor, ingresa el nombre.");
+    if (!nombre.trim()) return toast.avisar("Por favor, ingresa el nombre.", 'alerta');
     const descNum = Number(descuentoEspecial) || 0;
-    if (descNum < 0 || descNum > 100) return alert("El descuento debe estar entre 0% y 100%.");
+    if (descNum < 0 || descNum > 100) return toast.avisar("El descuento debe estar entre 0% y 100%.", 'alerta');
 
     try {
       await supabase.from('clientes').insert([{ nombre, telefono, saldo_cc: 0, descuento_especial: descNum }]);
-      alert("Cliente guardado correctamente.");
+      toast.exito("Cliente guardado correctamente.");
       setNombre(''); setTelefono(''); setDescuentoEspecial('0');
       cargarClientes();
-    } catch (e: any) { alert("Error: " + e.message); }
+    } catch (e: any) { toast.error("Error: " + e.message); }
   };
 
   const guardarEdicionDescuento = async () => {
     const desc = Number(nuevoDesc);
-    if (desc < 0 || desc > 100) return alert("El descuento debe estar entre 0% y 100%.");
+    if (desc < 0 || desc > 100) return toast.avisar("El descuento debe estar entre 0% y 100%.", 'alerta');
     
     const { error } = await supabase
       .from('clientes')
@@ -134,12 +137,12 @@ export default function ClientesCC({ darkMode = true }: { darkMode?: boolean }) 
       .eq('id', clienteExpandido.id);
 
     if (!error) {
-      alert("🎉 Descuento actualizado con éxito.");
+      toast.exito("Descuento actualizado con éxito.");
       setClienteExpandido({ ...clienteExpandido, descuento_especial: desc });
       setEditandoDesc(false);
       cargarClientes();
     } else {
-      alert("Error al guardar el descuento.");
+      toast.error("Error al guardar el descuento.");
     }
   };
 
@@ -162,28 +165,28 @@ export default function ClientesCC({ darkMode = true }: { darkMode?: boolean }) 
     const montoStr = prompt(`¿Cuánto abona ${cliente.nombre}? (Deuda actual: $${cliente.saldo_cc})`);
     if (montoStr === null) return;
     const monto = Math.round(Number(montoStr));
-    if (isNaN(monto) || monto <= 0 || monto > cliente.saldo_cc) return alert("Monto ingresado no válido.");
+    if (isNaN(monto) || monto <= 0 || monto > cliente.saldo_cc) return toast.avisar("Monto ingresado no válido.", 'alerta');
     const metodo = prompt("Ingrese método de recepción (Efectivo / Transferencia / Tarjeta):", "Efectivo");
     if (!metodo) return;
 
     const { error } = await supabase.from('clientes').update({ saldo_cc: cliente.saldo_cc - monto }).eq('id', cliente.id);
     if (!error) { 
       await registrarPagoCaja(monto, metodo, cliente); 
-      alert(`✅ Pago asentado. Nuevo saldo de deuda: $${cliente.saldo_cc - monto}`);
+      toast.exito(`Pago asentado. Nuevo saldo de deuda: $${cliente.saldo_cc - monto}`);
       await cargarClientes(); 
       setClienteExpandido(null); 
     }
   };
 
   const saldarTotal = async (cliente: any) => {
-    if (cliente.saldo_cc <= 0) return alert("Este cliente ya está al día.");
+    if (cliente.saldo_cc <= 0) return toast.avisar("Este cliente ya está al día.", 'info');
     const metodo = prompt("¿Cómo liquida la deuda? (Efectivo / Transferencia / Tarjeta):", "Efectivo");
     if (!metodo) return;
-    if (window.confirm(`¿Confirmas saldar el total de $${cliente.saldo_cc} e ingresarlo a caja?`)) {
+    if (await confirmar({ titulo: 'Confirmar cancelación', mensaje: `¿Confirmás saldar el total de $${cliente.saldo_cc} e ingresarlo a caja?`, textoOk: 'Sí, saldar' })) {
         const { error } = await supabase.from('clientes').update({ saldo_cc: 0 }).eq('id', cliente.id);
         if (!error) { 
           await registrarPagoCaja(cliente.saldo_cc, metodo, cliente); 
-          alert("✅ Cuenta totalmente saldada.");
+          toast.exito("Cuenta totalmente saldada.");
           await cargarClientes(); 
           setClienteExpandido(null); 
         }
@@ -193,13 +196,13 @@ export default function ClientesCC({ darkMode = true }: { darkMode?: boolean }) 
   const eliminarCliente = async (e: React.MouseEvent, cliente: any) => {
     e.stopPropagation();
     if (cliente.saldo_cc > 0) {
-      if (!window.confirm(`⚠️ DEUDA ACTIVA: El cliente debe $${cliente.saldo_cc}. ¿Seguro que quieres borrarlo igual?`)) return;
+      if (!(await confirmar({ titulo: 'El cliente tiene deuda', mensaje: `Debe $${cliente.saldo_cc}. ¿Seguro que querés borrarlo igual?`, textoOk: 'Borrar igual', peligro: true }))) return;
     } else {
-      if (!window.confirm(`¿Eliminar de la lista a ${cliente.nombre}?`)) return;
+      if (!(await confirmar({ titulo: 'Eliminar cliente', mensaje: `¿Eliminar de la lista a ${cliente.nombre}?`, textoOk: 'Eliminar', peligro: true }))) return;
     }
     const { error } = await supabase.from('clientes').delete().eq('id', cliente.id);
     if (!error) {
-      alert("Cliente removido.");
+      toast.exito("Cliente removido.");
       cargarClientes();
       if (clienteExpandido?.id === cliente.id) setClienteExpandido(null);
     }

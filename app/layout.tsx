@@ -1,3 +1,5 @@
+import TemaGlobal from '../components/ui/TemaGlobal';
+
 const SCRIPT_TEMA = `(function(){try{var g=localStorage.getItem('tema');var t=g==='claro'?'light':(g==='oscuro'?'dark':(window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'));document.documentElement.setAttribute('data-theme',t);}catch(e){document.documentElement.setAttribute('data-theme','dark');}})();`;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -9,7 +11,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <script dangerouslySetInnerHTML={{ __html: SCRIPT_TEMA }} />
       </head>
-      <body>{children}</body>
+      <body>
+        <TemaGlobal>{children}</TemaGlobal>
+      </body>
     </html>
   );
 }
