@@ -159,7 +159,7 @@ export default function Navbar({ activeTab, setActiveTab, darkMode, setDarkMode,
         }}
       >
         <Icono.ChevronLeft size={14} className={isCollapsed ? 'rotado' : ''} />
-        {!isCollapsed && <span>Minimizar</span>}
+        {!isCollapsed && <span>desplazar</span>}
       </button>
 
       {/* Navegación */}
