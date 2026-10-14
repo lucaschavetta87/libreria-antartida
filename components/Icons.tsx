@@ -14,6 +14,7 @@ import {
   HiOutlineChevronDown, HiOutlineChevronRight, HiOutlineChevronLeft, HiOutlineXMark,
   HiOutlineCheck, HiOutlineExclamationTriangle, HiOutlineInformationCircle,
   HiOutlineQrCode, HiOutlineTag, HiOutlineFolder, HiOutlineFunnel, HiOutlineArrowsUpDown,
+  HiOutlineArchiveBox, HiOutlineInboxStack,
   HiOutlineCalendarDays, HiOutlineClock, HiOutlineSun, HiOutlineMoon, HiOutlineArrowLeft,
   HiOutlineBolt, HiOutlineDocumentText, HiOutlineChartPie, HiOutlineWifi
 } from 'react-icons/hi2';
@@ -30,7 +31,10 @@ export const Icono = {
   Venta: conTamano(HiOutlineShoppingCart),
   Mayorista: conTamano(HiOutlineBuildingStorefront),
   Pedidos: conTamano(HiOutlineCube),
-  Inventario: conTamano(HiOutlineCube),
+  // Productos usa un ícono propio (caja archivada): antes comparte ícono con
+  // Pedidos Web y era imposible distinguirlos de un vistazo.
+  Inventario: conTamano(HiOutlineArchiveBox),
+  Stock: conTamano(HiOutlineInboxStack),
   CuentaCorriente: conTamano(HiOutlineCreditCard),
   Caja: conTamano(HiOutlineChartBar),
   Portada: conTamano(HiOutlinePhoto),
