@@ -58,7 +58,7 @@ export default function Topbar({ activeTab, setActiveTab, darkMode, setDarkMode,
         {/* Lado izquierdo: en celular abre el menú */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
           <button
-            className={esMovil ? undefined : 'solo-movil'}
+            className="solo-movil"
             onClick={() => setMenuAbierto(true)}
             aria-label="Abrir menú"
             style={{
