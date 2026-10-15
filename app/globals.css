@@ -342,18 +342,22 @@ button:disabled {
 
 /* =============================================================================
    IMPRESIÓN
-   Solo affects a los ticket y catálogos marcados: antes se blanqueaba TODO el
+   Solo afecta a los tickets y catálogos marcados: antes se blanqueaba TODO el
    documento, lo que dejaba los tickets con fondos oscuros al imprimir.
-   ========================================================================== */
 
-.no-imprimir {
-  display: none !important;
-}
+   OJO: `.no-imprimir` tiene que vivir DENTRO de `@media print`. Si queda fuera,
+   sus elementos se ocultan también en pantalla: por eso no se veían el diálogo
+   de confirmación al borrar ni la barra superior.
+   ========================================================================== */
 
 @media print {
   body {
     background: #ffffff !important;
     color: #000000 !important;
+  }
+
+  .no-imprimir {
+    display: none !important;
   }
 
   .ticket-print,
