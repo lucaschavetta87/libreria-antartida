@@ -128,6 +128,17 @@ export default function PedidosWeb({ darkMode = true, vendedorActual = '', vende
   const [cargando, setCargando] = useState(true);
   const [filtroEstado, setFiltroEstado] = useState<string>('todos');
   const [busqueda, setBusqueda] = useState('');
+  // Modo de presentación de los pedidos: tarjetas (visual) o lista (compacto, para
+  // ver muchos pedidos de un vistazo). Se recuerda entre visitas.
+  const [vista, setVista] = useState<'tarjetas' | 'lista'>(() => {
+    if (typeof window === 'undefined') return 'tarjetas';
+    try { return window.localStorage.getItem('vistaPedidos') === 'lista' ? 'lista' : 'tarjetas'; } catch { return 'tarjetas'; }
+  });
+
+  const cambiarVista = (nueva: 'tarjetas' | 'lista') => {
+    setVista(nueva);
+    try { window.localStorage.setItem('vistaPedidos', nueva); } catch { /* modo privado */ }
+  };
   const [pedidoSeleccionado, setPedidoSeleccionado] = useState<Pedido | null>(null);
 
   // Ítems del pedido abierto (borrador editable) y control de cambios sin guardar
@@ -842,6 +853,36 @@ export default function PedidosWeb({ darkMode = true, vendedorActual = '', vende
             <option value="completado">🟢 Completados / Entregados</option>
             <option value="cancelado">🔴 Cancelados</option>
           </select>
+
+          {/* Alternar entre tarjetas y lista */}
+          <div style={{
+            display: 'flex', gap: 2, padding: 3, borderRadius: '12px',
+            border: `1px solid ${theme.border}`, backgroundColor: theme.bg, marginLeft: 'auto'
+          }} role="group" aria-label="Modo de visualización">
+            {([
+              { id: 'tarjetas' as const, texto: 'Tarjetas', icono: '▦' },
+              { id: 'lista' as const, texto: 'Lista', icono: '☰' }
+            ]).map((v) => {
+              const activo = vista === v.id;
+              return (
+                <button
+                  key={v.id}
+                  onClick={() => cambiarVista(v.id)}
+                  aria-pressed={activo}
+                  title={`Ver en modo ${v.texto.toLowerCase()}`}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 6, padding: '9px 14px', borderRadius: '9px',
+                    border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: '0.85rem', minHeight: 40,
+                    background: activo ? theme.primary : 'transparent',
+                    color: activo ? '#fff' : theme.subtext
+                  }}
+                >
+                  <span style={{ fontSize: '0.95rem' }}>{v.icono}</span>
+                  {v.texto}
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 
@@ -853,6 +894,110 @@ export default function PedidosWeb({ darkMode = true, vendedorActual = '', vende
           <span style={{ fontSize: '1.1rem', fontWeight: 600 }}>No hay pedidos que coincidan con esta búsqueda.</span>
         </div>
       ) : (
+        /* MODO LISTA: una fila por pedido, para ver muchos de un vistazo.
+           Mismo orden y mismos datos que las tarjetas, sin cambiar la lógica. */
+        vista === 'lista' ? (
+          <div style={{
+            backgroundColor: theme.card, border: `1px solid ${theme.border}`, borderRadius: '18px',
+            overflow: 'hidden'
+          }}>
+            {/* Encabezado de columnas (solo en pantallas con lugar) */}
+            <div className="solo-escritorio" style={{
+              display: 'grid', gridTemplateColumns: '92px minmax(140px, 2fr) minmax(110px, 1.1fr) minmax(100px, 1fr) 90px minmax(110px, 1fr)',
+              gap: '10px', padding: '10px 16px', backgroundColor: theme.bg,
+              borderBottom: `1px solid ${theme.border}`, fontSize: '0.68rem', fontWeight: 800,
+              textTransform: 'uppercase', letterSpacing: '0.06em', color: theme.subtext
+            }}>
+              <span>Pedido</span>
+              <span>Cliente</span>
+              <span>Estado</span>
+              <span>Envío</span>
+              <span>Ítems</span>
+              <span style={{ textAlign: 'right' }}>Total</span>
+            </div>
+
+            {pedidosFiltrados.map((pedido) => {
+              const prog = progresoPedido(pedido);
+              const enCurso = pedido.estado === 'pendiente' || pedido.estado === 'preparando';
+              const totalFinalFila = calcularTotalFinal(pedido.total, prog.its);
+              const conAjustesFila = prog.ajustes > 0 && totalFinalFila !== Number(pedido.total);
+              const colorEstado = getStatusColor(pedido.estado);
+
+              return (
+                <div
+                  key={pedido.id}
+                  onClick={() => abrirPedido(pedido)}
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+                    gap: '6px 10px',
+                    padding: '12px 16px',
+                    borderBottom: `1px solid ${theme.border}`,
+                    cursor: 'pointer',
+                    alignItems: 'center',
+                    borderLeft: `4px solid ${pedido.estado === 'pendiente' ? colorEstado : 'transparent'}`,
+                    backgroundColor: pedido.estado === 'pendiente' ? `${colorEstado}0D` : 'transparent'
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = theme.hover; }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = pedido.estado === 'pendiente' ? `${colorEstado}0D` : 'transparent';
+                  }}
+                >
+                  <span style={{ fontSize: '0.78rem', fontWeight: 800, color: theme.subtext }}>
+                    #{pedido.id.toString().padStart(4, '0')}
+                  </span>
+
+                  <span style={{ minWidth: 0 }}>
+                    <span style={{ display: 'block', fontWeight: 700, color: theme.text, fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {pedido.nombre}
+                    </span>
+                    <span style={{ display: 'block', fontSize: '0.72rem', color: theme.subtext }}>
+                      {formatearFecha(pedido.created_at)}
+                      {getVendedor(pedido) && ` · ${getVendedor(pedido)}`}
+                    </span>
+                  </span>
+
+                  <span>
+                    <span style={{
+                      display: 'inline-block', padding: '3px 9px', borderRadius: '999px',
+                      fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase',
+                      backgroundColor: `${colorEstado}15`, color: colorEstado, border: `1px solid ${colorEstado}30`
+                    }}>
+                      {getStatusLabel(pedido.estado)}
+                    </span>
+                    {enCurso && prog.total > 0 && (
+                      <span style={{ display: 'block', fontSize: '0.7rem', color: theme.subtext, marginTop: 3 }}>
+                        {prog.resueltos}/{prog.total} preparados
+                      </span>
+                    )}
+                  </span>
+
+                  <span style={{ fontSize: '0.82rem', color: theme.subtext }}>
+                    {pedido.metodo_envio === 'envio' ? '🏍️ Envío' : '🏬 Retiro'}
+                  </span>
+
+                  <span style={{ fontSize: '0.85rem', color: theme.text, fontWeight: 600 }}>
+                    {pedido.productos?.length || 0}
+                    {prog.ajustes > 0 && (
+                      <span style={{ color: '#f59e0b', marginLeft: 4, fontSize: '0.72rem' }} title={`${prog.ajustes} con ajustes`}>⚠️</span>
+                    )}
+                  </span>
+
+                  <span style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                    {conAjustesFila && (
+                      <span style={{ display: 'block', fontSize: '0.75rem', color: theme.subtext, textDecoration: 'line-through' }}>
+                        ${pedido.total.toLocaleString('es-AR')}
+                      </span>
+                    )}
+                    <span style={{ fontWeight: 800, color: theme.text, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}>
+                      ${(conAjustesFila ? totalFinalFila : pedido.total).toLocaleString('es-AR')}
+                    </span>
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '20px' }}>
           {pedidosFiltrados.map((pedido) => {
             const prog = progresoPedido(pedido);
@@ -932,7 +1077,7 @@ export default function PedidosWeb({ darkMode = true, vendedorActual = '', vende
             </div>
           );})}
         </div>
-      )}
+      ))}
 
       {pedidoSeleccionado && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)', zIndex: 5000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
