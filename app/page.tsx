@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { supabase } from "./supabase";
 import Navbar from "../components/Navbar";
 import Topbar from "../components/Topbar";
+import BarraInferior from "../components/BarraInferior";
 import DashboardInicio from "../components/DashboardInicio"; 
 import Stock from "../components/GestionStock";
 import Ventas from "../components/Ventas";
@@ -41,10 +42,19 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
 
   // Tema y responsive vienen del proveedor raíz (antes se duplicaban por archivo).
-  const { darkMode, setDarkMode, theme, esMovil: isMobile, montado } = useTema();
+  const { darkMode, setDarkMode, theme, esMovil: isMobile, ancho, montado } = useTema();
   const toast = useToast();
 
-  // En el celular la sidebar no se usa (la navegación vive en el menú del Topbar).
+  // La sidebar lateral y la barra inferior nunca coinciden: hasta 1024px va la
+  // barra de abajo; desde 1025px en adelante, la sidebar de la izquierda.
+  const esEscritorio = montado && ancho > 1024;
+
+  // Pedidos que todavía no están resueltos: alimentan el badge de la barra.
+  const pedidosPendientes = ordenes.filter(
+    (o: any) => !['entregado', 'completado', 'cancelado'].includes(String(o.estado || '').toLowerCase())
+  ).length;
+
+  // En el celular la sidebar no se usa (la navegación vive en la barra inferior).
   useEffect(() => {
     if (isMobile) setIsSidebarCollapsed(true);
   }, [isMobile, setIsSidebarCollapsed]);
@@ -214,7 +224,7 @@ export default function Home() {
   return (
     <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", minHeight: "100vh", backgroundColor: theme.bg, color: theme.text }}>
       
-      {montado && !isMobile && (
+      {esEscritorio && (
         <Navbar 
           activeTab={activeTab} 
           setActiveTab={setActiveTab} 
@@ -232,18 +242,30 @@ export default function Home() {
         darkMode={darkMode}
         setDarkMode={setDarkMode}
         isCollapsed={isSidebarCollapsed}
-        esMovil={isMobile}
+        esEscritorio={esEscritorio}
         usuarioActivo={usuarioActivo}
-        pedidosPendientes={ordenes.filter((o: any) => !o.estado || String(o.estado).toLowerCase() !== 'entregado').length}
+        pedidosPendientes={pedidosPendientes}
       />
 
-      <main style={{
+      {/* Navegación del celular y la tablet. En escritorio la oculta el CSS
+          y corre la sidebar lateral. */}
+      <BarraInferior
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        darkMode={darkMode}
+        usuarioActivo={usuarioActivo}
+        pedidosPendientes={pedidosPendientes}
+      />
+
+      <main
+        className="con-barra-inferior"
+        style={{
         flexGrow: 1,
         minWidth: 0,
         ...paddingContenido(isMobile),
         // Deja lugar para la barra superior fija
         paddingTop: isMobile ? 76 : 82,
-        marginLeft: isMobile ? "0px" : (isSidebarCollapsed ? "76px" : "248px"),
+        marginLeft: esEscritorio ? (isSidebarCollapsed ? "76px" : "248px") : "0px",
         transition: "margin-left 0.25s ease, padding 0.2s ease"
       }}>
         <div style={{ maxWidth: "1512px", margin: "0 auto", width: "100%" }}>

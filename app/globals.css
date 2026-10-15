@@ -276,6 +276,26 @@ button:disabled {
   }
 }
 
+/* Barra inferior de navegación: visible en móvil y tablet, nunca en escritorio.
+   En escritorio (>1024px) corre la sidebar lateral. */
+.barra-inferior {
+  display: flex !important;
+}
+
+@media (min-width: 1025px) {
+  .barra-inferior {
+    display: none !important;
+  }
+}
+
+/* Deja espacio al final del contenido para que la barra no tape el último
+   renglón de las listas (y respeta el gesto inferior del iPhone). */
+@media (max-width: 1024px) {
+  .con-barra-inferior {
+    padding-bottom: calc(78px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+}
+
 @media (max-width: 768px) {
   .contenido-principal {
     padding: 14px 14px;

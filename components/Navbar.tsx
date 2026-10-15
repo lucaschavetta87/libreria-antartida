@@ -70,7 +70,9 @@ export default function Navbar({ activeTab, setActiveTab, darkMode, setDarkMode,
 
   // En pantallas medianas la sidebar arranca colapsada para no comer el espacio.
   useEffect(() => {
-    const aplicar = () => { if (window.innerWidth <= 1280 && window.innerWidth > 768) setIsCollapsed(true); };
+    // En pantallas medianas la sidebar arranca colapsada para no comer espacio.
+    // (La sidebar solo existe desde 1025px: hasta ahí corre la barra inferior.)
+    const aplicar = () => { if (window.innerWidth > 1024 && window.innerWidth <= 1280) setIsCollapsed(true); };
     aplicar();
     window.addEventListener('resize', aplicar);
     return () => window.removeEventListener('resize', aplicar);
