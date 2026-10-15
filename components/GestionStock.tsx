@@ -12,6 +12,11 @@ import ActualizarPrecios from './ActualizarPrecios';
 import CodigoBarras from './CodigoBarras';
 import MenuBotonCategorias from './MenusPDF';
 import MenuCatalogoCompleto, { OpcionesCatalogoCompleto } from './MenuCatalogoCompleto';
+import ModalCategoria from './ModalCategoria';
+import {
+  PRINCIPALES_POR_DEFECTO, calcularPrincipales, esPrincipal as esCatPrincipal,
+  generarIdCategoria, leerPrincipalesLocal, guardarPrincipalesLocal, limpiarPrincipalesLocal
+} from '../lib/categorias';
 import { normalizarCodigo } from '../lib/codigobarras';
 import { dibujarEtiquetasEnDoc } from '../lib/etiquetasPdf';
 import { prepararImagenRedimensionada, subirArchivoAStorage } from '../lib/imageUtils';
@@ -1107,7 +1112,7 @@ function ProductoCard({ item, darkMode, seleccionado, onToggle, onOpen, onEdit, 
 function PanelCarpetas({
   darkMode, categorias, sel, seleccionar, conteos, totalStock, subsDe, subsubsDe,
   onCrearSub, onCrearSubSub, onRenombrarSub, onEliminarSub, onRenombrarSubSub, onEliminarSubSub, onGestionar, onDropProductos, onDropCarpeta,
-  onRenombrarCategoria, onEliminarCategoria
+  onRenombrarCategoria, onEliminarCategoria, principalesIds, onEditarCategoria, onNuevaPrincipal
 }: any) {
   const [abiertas, setAbiertas] = useState<Record<string, boolean>>({});
   const [mostrarOtras, setMostrarOtras] = useState(false);
@@ -1137,10 +1142,11 @@ function PanelCarpetas({
     input: darkMode ? '#0f172a' : '#ffffff',
   };
 
-  const principales = categorias.filter((c: any) => IDS_PRINCIPALES.includes(String(c.id).toLowerCase()))
-    .sort((a: any, b: any) => IDS_PRINCIPALES.indexOf(String(a.id).toLowerCase()) - IDS_PRINCIPALES.indexOf(String(b.id).toLowerCase()));
-  const principalesFinal = CATEGORIAS_PRINCIPALES.map(p => principales.find((c: any) => String(c.id).toLowerCase() === p.id) || p);
-  const otras = categorias.filter((c: any) => !IDS_PRINCIPALES.includes(String(c.id).toLowerCase()))
+  const principales = categorias
+    .filter((c: any) => (principalesIds || []).includes(String(c.id).toLowerCase()))
+    .sort((a: any, b: any) => principalesIds.indexOf(String(a.id).toLowerCase()) - principalesIds.indexOf(String(b.id).toLowerCase()));
+  const principalesFinal = principales;
+  const otras = categorias.filter((c: any) => !(principalesIds || []).includes(String(c.id).toLowerCase()))
     .sort((a: any, b: any) => String(a.label).localeCompare(String(b.label)));
 
   const filaBase = (activo: boolean): React.CSSProperties => ({
@@ -1227,12 +1233,19 @@ function PanelCarpetas({
             <span onClick={(e) => { e.stopPropagation(); setAbiertas(p => ({ ...p, [catId]: !estaAbierta })); }} style={{ width: '14px', fontSize: '0.7rem', color: t.subtext }}>{estaAbierta ? '▼' : '▶'}</span>
             <span>{estaAbierta ? '📂' : '📁'}</span>
             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cat.label}</span>
+            {(principalesIds || []).includes(catId) && (
+              <span title="Categoría principal" style={{
+                fontSize: '0.62rem', fontWeight: 800, color: '#7c3aed', flexShrink: 0,
+                background: 'rgba(139,92,246,0.14)', border: '1px solid rgba(139,92,246,0.4)',
+                padding: '1px 6px', borderRadius: 999
+              }}>★</span>
+            )}
             {accionesFila(
               catId + '|',
               catActiva,
-              () => { setRenombrandoCat(catId); setNombreCat(cat.label || ''); },
+              () => onEditarCategoria(cat),
               () => onEliminarCategoria(catId, cat.label, info.total),
-              'Renombrar categoría',
+              'Editar categoría (nombre, imagen y principal)',
               'Eliminar categoría y subcarpetas'
             ) || contador(info.total)}
           </div>
@@ -1293,7 +1306,25 @@ function PanelCarpetas({
       <div style={filaBase(sel.cat === '')} onClick={() => seleccionar('', null)}>
         <span>🗂️</span><span>Todo el stock</span>{contador(totalStock)}
       </div>
-      <div style={{ fontSize: '0.72rem', fontWeight: 800, color: t.subtext, padding: '14px 10px 6px' }}>Marcas principales</div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, padding: '14px 10px 6px' }}>
+        <span style={{ fontSize: '0.72rem', fontWeight: 800, color: t.subtext }}>Marcas principales</span>
+        <button
+          onClick={onNuevaPrincipal}
+          title="Agregar una categoría principal nueva"
+          style={{
+            display: 'flex', alignItems: 'center', gap: 4, padding: '4px 8px', borderRadius: 8,
+            border: `1px solid ${t.border}`, background: 'transparent', color: t.subtext,
+            cursor: 'pointer', fontSize: '0.7rem', fontWeight: 800
+          }}
+        >
+          + Principal
+        </button>
+      </div>
+      {principalesFinal.length === 0 && (
+        <div style={{ padding: '8px 10px', fontSize: '0.78rem', color: t.subtext }}>
+          Todavía no hay categorías principales.
+        </div>
+      )}
       {principalesFinal.map(renderCarpeta)}
       {otras.length > 0 && (
         <>
@@ -1333,7 +1364,21 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
   const [opcionesCatalogo, setOpcionesCatalogo] = useState<OpcionesCatalogoCompleto>({ incluirSinStock: true, incluirVariedades: true, incluirCodigos: true });
   const [generandoCatalogo, setGenerandoCatalogo] = useState<'pdf' | 'excel' | null>(null);
 
+  // --- Categorías principales editables ---
+  const [modalCategoria, setModalCategoria] = useState<{ id: string; label: string; imagen_url?: string | null; es_principal?: boolean | null } | null | undefined>(undefined);
+  const [soportaEsPrincipal, setSoportaEsPrincipal] = useState(true);
+  const [guardandoCategoria, setGuardandoCategoria] = useState(false);
+
   const [categorias, setCategorias] = useState<{ id: string; label: string; imagen_url?: string | null }[]>(CATEGORIAS_DEFAULT);
+
+  // Ids de las categorías principales, calculadas desde los datos de Supabase.
+  // Mientras la columna es_principal no exista en la base, se usa el respaldo local.
+  const principalesIds = useMemo(() => {
+    const marcadas = calcularPrincipales(categorias as any, PRINCIPALES_POR_DEFECTO);
+    if (soportaEsPrincipal) return marcadas;
+    const local = leerPrincipalesLocal();
+    return local && local.length > 0 ? local : marcadas;
+  }, [categorias, soportaEsPrincipal]);
   const [subcategoriasDB, setSubcategoriasDB] = useState<{ id: any; categoria: string; nombre: string }[]>([]);
   const [subsLocales, setSubsLocales] = useState<{ id: any; categoria: string; nombre: string }[]>([]);
   const [subsubsDB, setSubsubsDB] = useState<{ id: any; categoria: string; subcategoria: string; nombre: string }[]>([]);
@@ -1361,10 +1406,26 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Las categorías principales se marcan en la columna `es_principal`. Si esa
+  // columna todavía no existe en Supabase, el sistema sigue funcionando con un
+  // respaldo local para que se pueda probar sin romper nada.
   const cargarCategorias = async () => {
     try {
+      const conPrincipal = await supabase.from('categorias').select('id, label, orden, imagen_url, es_principal');
+      if (!conPrincipal.error && conPrincipal.data) {
+        setCategorias(conPrincipal.data as any);
+        setSoportaEsPrincipal(true);
+        return;
+      }
+
       const { data, error } = await supabase.from('categorias').select('*');
       if (!error && data && data.length > 0) setCategorias(data);
+      setSoportaEsPrincipal(false);
+      toast.avisar(
+        'Las categorías principales se guardan solo en esta computadora hasta que se agregue la columna es_principal en Supabase.',
+        'alerta',
+        9000
+      );
     } catch (err) { console.error('Error al cargar categorías:', err); }
   };
 
@@ -2079,6 +2140,86 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
     }
   };
 
+
+  // ========================================================================
+  // Categorías: editar (nombre / imagen / principal) y crear una nueva
+  // ========================================================================
+  const guardarCategoria = async (datos: {
+    id?: string; label: string; imagen_url: string | null; es_principal: boolean; archivo?: File | null;
+  }) => {
+    const label = datos.label.trim();
+    if (!label) return;
+
+    setGuardandoCategoria(true);
+    try {
+      let imagenFinal = datos.imagen_url || null;
+      if (datos.archivo) {
+        const urlSubida = await subirImagen(datos.archivo);
+        if (!urlSubida) {
+          toast.error('No se pudo subir la imagen de la categoría.');
+          return;
+        }
+        imagenFinal = urlSubida;
+      }
+
+      // --- Alta de categoría nueva ---
+      if (!datos.id) {
+        const nuevoId = generarIdCategoria(label);
+        if (!nuevoId) {
+          toast.avisar('Ese nombre no sirve como identificador de categoría.', 'alerta');
+          return;
+        }
+        const existe = categorias.some((c: any) => String(c.id).toLowerCase() === nuevoId);
+        if (existe) {
+          toast.avisar('Ya existe una categoría con ese nombre.', 'alerta');
+          return;
+        }
+
+        const payload: any = { id: nuevoId, label, imagen_url: imagenFinal };
+        if (soportaEsPrincipal) payload.es_principal = datos.es_principal;
+        const { error } = await supabase.from('categorias').insert([payload]);
+        if (error) throw error;
+
+        if (!soportaEsPrincipal && datos.es_principal) {
+          guardarPrincipalesLocal([...leerPrincipalesLocal() || PRINCIPALES_POR_DEFECTO, nuevoId]);
+        }
+        await cargarCategorias();
+        setModalCategoria(undefined);
+        toast.exito(`Categoría "${label}" creada${datos.es_principal ? ' como principal' : ''}.`);
+        return;
+      }
+
+      // --- Edición ---
+      const updates: any = { label, imagen_url: imagenFinal };
+      if (soportaEsPrincipal) updates.es_principal = datos.es_principal;
+      const { error } = await supabase.from('categorias').update(updates).eq('id', datos.id);
+      if (error) throw error;
+
+      if (!soportaEsPrincipal) {
+        const actuales = leerPrincipalesLocal() || PRINCIPALES_POR_DEFECTO;
+        guardarPrincipalesLocal(
+          datos.es_principal
+            ? Array.from(new Set([...actuales, datos.id!.toLowerCase()]))
+            : actuales.filter((id) => id !== datos.id!.toLowerCase())
+        );
+      }
+
+      await cargarCategorias();
+      setModalCategoria(undefined);
+      toast.exito('Categoría actualizada.');
+    } catch (err: any) {
+      toast.error('No se pudo guardar la categoría: ' + (err?.message || 'error desconocido'));
+    } finally {
+      setGuardandoCategoria(false);
+    }
+  };
+
+  const abrirEdicionCategoria = (cat: any) => {
+    setModalCategoria({ id: String(cat.id), label: cat.label || '', imagen_url: cat.imagen_url || '', es_principal: Boolean(cat.es_principal) });
+  };
+
+  const abrirNuevaPrincipal = () => setModalCategoria(null);
+
   const obtenerLabelCategoria = (idCat: string) => {
     if (!idCat) return '⚠️ Sin Categoría';
     const encontrada = categorias.find(c => String(c.id).toLowerCase() === String(idCat).toLowerCase());
@@ -2417,8 +2558,8 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
   };
 
   const categoriasOrdenadas = [
-    ...IDS_PRINCIPALES.map(id => categorias.find(c => String(c.id).toLowerCase() === id) || CATEGORIAS_PRINCIPALES.find(c => c.id === id)!),
-    ...categorias.filter(c => !IDS_PRINCIPALES.includes(String(c.id).toLowerCase())).sort((a, b) => String(a.label).localeCompare(String(b.label)))
+    ...principalesIds.map(id => categorias.find(c => String(c.id).toLowerCase() === id)).filter((c): c is any => Boolean(c)),
+    ...categorias.filter(c => !principalesIds.includes(String(c.id).toLowerCase())).sort((a, b) => String(a.label).localeCompare(String(b.label)))
   ];
 
   // Se calcula acá (no antes) porque construirCatalogoCompleto usa categoriasOrdenadas.
@@ -2495,6 +2636,16 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
 
       <ModalImportarExcel isOpen={mostrarModalImportar} onClose={() => setMostrarModalImportar(false)} categorias={categorias} stock={stock} setStock={setStock} darkMode={darkMode} setSel={setSel} />
 
+      {modalCategoria !== undefined && (
+        <ModalCategoria
+          categoria={modalCategoria}
+          darkMode={darkMode}
+          subiendo={guardandoCategoria}
+          onClose={() => setModalCategoria(undefined)}
+          onGuardar={(datos) => guardarCategoria({ ...datos, archivo: (datos as any).archivo })}
+        />
+      )}
+
       <ActualizarPrecios isOpen={mostrarModalActualizarPrecios} onClose={() => setMostrarModalActualizarPrecios(false)} categorias={categorias} subcategorias={subcategoriasDB} stock={stock} setStock={setStock} darkMode={darkMode} />
 
       {/* El título de la sección ya está en la barra superior: acá va el contexto útil */}
@@ -2544,7 +2695,7 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
           icono="🖨️"
           colorBoton="#7c3aed"
           categorias={categoriasOrdenadas}
-          principalesIds={IDS_PRINCIPALES}
+          principalesIds={principalesIds}
           mostrarSubs={true}
           subsDe={subsDe}
           subsubsDe={subsubsDe}
@@ -2563,7 +2714,7 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
           icono="📄"
           colorBoton="#ef4444"
           categorias={categoriasOrdenadas}
-          principalesIds={IDS_PRINCIPALES}
+          principalesIds={principalesIds}
           mostrarSubs={true}
           subsDe={subsDe}
           subsubsDe={subsubsDe}
@@ -2598,7 +2749,7 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
       <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start', flexDirection: isMobile ? 'column' : 'row', width: '100%' }}>
         {(!isMobile || panelAbierto) && (
           <aside style={panelStyle}>
-            <PanelCarpetas darkMode={darkMode} categorias={categorias} sel={sel} seleccionar={seleccionar} conteos={conteos} totalStock={stock?.length || 0} subsDe={subsDe} subsubsDe={subsubsDe} onCrearSub={crearSubcategoria} onCrearSubSub={crearSubsubcategoria} onRenombrarSub={renombrarSubcategoria} onEliminarSub={eliminarSubcategoria} onRenombrarSubSub={renombrarSubsubcategoria} onEliminarSubSub={eliminarSubsubcategoria} onDropProductos={moverProductos} onDropCarpeta={moverCarpeta} onGestionar={() => setMostrarModalCategorias(true)} onRenombrarCategoria={renombrarCategoria} onEliminarCategoria={eliminarCategoriaConHijos} />
+            <PanelCarpetas darkMode={darkMode} categorias={categorias} sel={sel} seleccionar={seleccionar} conteos={conteos} totalStock={stock?.length || 0} subsDe={subsDe} subsubsDe={subsubsDe} onCrearSub={crearSubcategoria} onCrearSubSub={crearSubsubcategoria} onRenombrarSub={renombrarSubcategoria} onEliminarSub={eliminarSubcategoria} onRenombrarSubSub={renombrarSubsubcategoria} onEliminarSubSub={eliminarSubsubcategoria} onDropProductos={moverProductos} onDropCarpeta={moverCarpeta} onGestionar={() => setMostrarModalCategorias(true)} onRenombrarCategoria={renombrarCategoria} onEliminarCategoria={eliminarCategoriaConHijos} principalesIds={principalesIds} onEditarCategoria={abrirEdicionCategoria} onNuevaPrincipal={abrirNuevaPrincipal} />
           </aside>
         )}
 
