@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { supabase } from '../app/supabase'; 
 import { useToast } from './ui/Avisos';
+import { StepperCantidad, AjustePorcentual, armarHTMLTicket, type TonosPos } from './ui/PosComunes';
 
 interface VentasProps {
   stock: any[];
@@ -72,10 +73,11 @@ export default function Ventas({ stock, setStock, ventas, setVentas, darkMode = 
     backgroundColor: theme.input, color: theme.text, width: '100%', outline: 'none', fontSize: '16px'
   };
 
-  const countBtnStyle: React.CSSProperties = {
-    backgroundColor: darkMode ? '#334155' : '#e2e8f0', color: theme.text, border: 'none',
-    width: '36px', height: '36px', borderRadius: '8px', cursor: 'pointer',
-    fontWeight: 'bold', fontSize: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center'
+  // Paleta del punto de venta: la misma que usa el mayorista, para que las dos
+  // pantallas se vean idénticas (cada una con su lógica).
+  const tonoPos: TonosPos = {
+    fondo: theme.innerBox, borde: theme.border, texto: theme.text,
+    subtexto: theme.subtext, acento: '#10b981'
   };
 
   const claveCarrito = (item: any) => `${item.id}::${item.variedad_id || ''}`;
@@ -88,6 +90,57 @@ export default function Ventas({ stock, setStock, ventas, setVentas, darkMode = 
   };
   const promoDe = (producto: any, variedad: any) => String(variedad?.precio_promo ?? producto?.precio_promo ?? '').trim();
   const variedadDe = (producto: any, item: any) => obtenerVariedades(producto).find((v: any) => String(v.id) === String(item.variedad_id)) || null;
+
+  // Edición manual del nombre de una línea del carrito (opcional: si no se toca,
+  // manda el producto con su variedad).
+  const [editandoTitulo, setEditandoTitulo] = useState<string | null>(null);
+  const [borradorTitulo, setBorradorTitulo] = useState('');
+
+  // Lo que se muestra en el carrito y se imprime en el ticket.
+  const tituloDe = (item: any) =>
+    item.titulo_manual || `${item.nombre || ''}${item.variedad_nombre ? ` · ${item.variedad_nombre}` : ''}`;
+
+  const variedadesDeItem = (item: any) => obtenerVariedades(stock.find(s => s.id === item.id));
+
+  const confirmarTitulo = (clave: string) => {
+    const limpio = borradorTitulo.trim();
+    setCarrito(prev => prev.map(item =>
+      claveCarrito(item) === clave ? { ...item, titulo_manual: limpio && limpio !== tituloDe(item) ? limpio : null } : item
+    ));
+    setEditandoTitulo(null);
+    setBorradorTitulo('');
+  };
+
+  // Elegir (o sacar) la variedad ya dentro del carrito: cambia el precio si la
+  // línea no fue editada a mano, y es lo que termina imprimiéndose.
+  const cambiarVariedadEnCarrito = (clave: string, nuevaVariedadId: string) => {
+    setCarrito(prev => {
+      const destino = prev.find(item => claveCarrito(item) === clave);
+      if (!destino) return prev;
+
+      const itemStock = stock.find(s => s.id === destino.id);
+      const variedad = obtenerVariedades(itemStock)
+        .find((v: any) => String(v.id) === String(nuevaVariedadId)) || null;
+
+      const actualizado = {
+        ...destino,
+        variedad_id: variedad?.id ?? null,
+        variedad_nombre: variedad?.nombre ?? null,
+        imagen: variedad?.imagen_url || itemStock?.imagen_url || destino.imagen,
+        precio_original_minorista: precioDe(itemStock, variedad, 'precio_minorista')
+      };
+
+      // Si ya existía otra línea con esa misma variedad se fusionan (la clave
+      // del renglón depende del producto + variedad).
+      const claveNueva = claveCarrito(actualizado);
+      const repetido = prev.find(item => item !== destino && claveCarrito(item) === claveNueva);
+      if (repetido) {
+        const resto = prev.filter(item => item !== destino && item !== repetido);
+        return [...resto, { ...repetido, unidades: repetido.unidades + actualizado.unidades }];
+      }
+      return prev.map(item => item === destino ? actualizado : item);
+    });
+  };
 
   const carritoConPreciosVivos = useMemo(() => {
     return carrito.map(item => {
@@ -149,8 +202,13 @@ export default function Ventas({ stock, setStock, ventas, setVentas, darkMode = 
     setPorcentajeAjuste(''); 
   };
 
+  // Historial del mostrador: ventas sin cuenta de cliente, excepto las que se
+  // cobraron en el POS mayorista sin cliente (salen como Consumidor Final).
   const historialMinoristaFiltrado = useMemo(() => {
-    return ventas.filter((v: any) => !v.cliente_id || v.cliente_nombre === 'Venta Minorista Mostrador');
+    return ventas.filter((v: any) => {
+      const sinCliente = v.cliente_id === null || v.cliente_id === undefined || v.cliente_id === '';
+      return sinCliente && v.cliente_nombre !== 'Consumidor Final';
+    });
   }, [ventas]);
 
   const totalPaginasHistorial = Math.ceil(historialMinoristaFiltrado.length / itemsPorPaginaHistorial);
@@ -192,10 +250,9 @@ export default function Ventas({ stock, setStock, ventas, setVentas, darkMode = 
     const variedades = obtenerVariedades(producto);
     const idElegido = variedadId || variedadElegidaPorProducto[producto.id] || '';
     const variedadObj = variedades.find((v: any) => String(v.id) === String(idElegido)) || null;
-    if (variedades.length > 0 && !variedadObj) {
-      toast.avisar('Elegí una variedad antes de agregar el producto al carrito.', 'alerta');
-      return;
-    }
+    // La variedad ya no es obligatoria: si no se elige, el renglón entra con el
+    // nombre por defecto del producto y se puede acomodar (nombre o variedad)
+    // desde el carrito. Solo define el precio y lo que se imprime.
 
     const nuevoItem = {
       id: producto.id,
@@ -223,6 +280,13 @@ export default function Ventas({ stock, setStock, ventas, setVentas, darkMode = 
     setCantidadSeleccionada(1);
   };
 
+  // Enter o el botón AÑADIR agregan la primera coincidencia (mismo camino que
+  // el clic en el resultado), con la cantidad que se esté usando.
+  const handleSumarManual = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (sugerencias.length > 0) ejecutarAgregadoDirecto(sugerencias[0], cantidadSeleccionada);
+  };
+
   const manejarCambioPrecioInput = (clave: string, nuevoValor: string) => {
     const num = Number(nuevoValor);
     setCarrito(prevCarrito => prevCarrito.map(c =>
@@ -230,50 +294,35 @@ export default function Ventas({ stock, setStock, ventas, setVentas, darkMode = 
     ));
   };
 
-  const cambiarUnidadesManual = (clave: string, cambio: number) => {
-    setCarrito(prevCarrito => prevCarrito.map(item => {
-      if (claveCarrito(item) === clave) {
-        const nuevasUnidades = item.unidades + cambio;
-        return nuevasUnidades > 0 ? { ...item, unidades: nuevasUnidades } : null;
-      }
-      return item;
-    }).filter(Boolean) as any[]);
+  // Cantidad de un renglón: llega desde el stepper, que acepta tanto los botones
+  // −/+ como la escritura directa (hasta 4 dígitos).
+  const manejarCambioUnidades = (clave: string, unidades: number) => {
+    const n = Math.min(9999, Math.max(1, Math.round(unidades) || 1));
+    setCarrito(prevCarrito => prevCarrito.map(item => claveCarrito(item) === clave ? { ...item, unidades: n } : item));
   };
 
-  const manejarCambioUnidadesInput = (clave: string, valor: string) => {
-    const num = Math.max(1, parseInt(valor, 10) || 1);
-    setCarrito(prevCarrito => prevCarrito.map(item => claveCarrito(item) === clave ? { ...item, unidades: num } : item));
+  const eliminarLinea = (clave: string) => {
+    setCarrito(prevCarrito => prevCarrito.filter(c => claveCarrito(c) !== clave));
   };
 
+  // Comprobante del mostrador: encabezado DISTRIBUIDORA INDIA con día y hora,
+  // medio de pago, lista de productos con cantidad e importe y al final el
+  // total. Sin subtotales ni descuentos. Sirve para emitir y para reimprimir.
   const imprimirTicketVenta = (datos: any) => {
     const windowUrl = typeof window !== 'undefined' ? window.open('', '_blank') : null;
     if (!windowUrl) return;
-    windowUrl.document.write(`
-      <html>
-        <head>
-          <style>
-            body { font-family: 'Courier New', monospace; padding: 20px; font-size: 13px; font-weight: bold; color: #000; }
-            .text-center { text-align: center; }
-            .divider { border-top: 2px dashed #000; margin: 10px 0; }
-          </style>
-        </head>
-        <body>
-          <div class="text-center">
-            <h3>PUEBLOS DEL MUNDO</h3>
-            <div>MOVIMIENTO: TICKET MINORISTA MOSTRADOR</div>
-            <div>Fecha: ${datos.fecha}</div>
-          </div>
-          <div class="divider"></div>
-          ${datos.items.map((i: any) => `<div>${i.unidades}x ${i.nombre} ->$${(i.unidades * (i.precio_venta || i.precio_original_minorista || 0)).toLocaleString('es-AR')}</div>`).join('')}
-          <div class="divider"></div>
-          <div>SUBTOTAL OPERACIÓN: $${Number(datos.subtotal || 0).toLocaleString('es-AR')}</div>
-          ${datos.descuento > 0 ? `<div>DESCUENTO DIRECTO: -$${Number(datos.descuento || 0).toLocaleString('es-AR')}</div>` : ''}
-          <div style="font-size:15px; margin-top: 5px;">TOTAL PAGADO: $${Number(datos.total || 0).toLocaleString('es-AR')}</div>
-          <div class="text-center" style="margin-top:15px;">PAGO: ${datos.metodo_pago.toUpperCase()}</div>
-          <script>window.onload = function() { window.print(); window.close(); };</script>
-        </body>
-      </html>
-    `);
+    windowUrl.document.write(armarHTMLTicket({
+      fecha: datos.fecha,
+      metodoPago: datos.metodo_pago,
+      cliente: null,
+      items: (Array.isArray(datos.items) ? datos.items : []).map((i: any) => ({
+        unidades: i.unidades,
+        nombre: tituloDe(i),
+        importe: i.unidades * (i.precio_venta || i.precio_original_minorista || 0)
+      })),
+      total: datos.total,
+      pie: null
+    }));
     windowUrl.document.close();
   };
 
@@ -387,16 +436,48 @@ export default function Ventas({ stock, setStock, ventas, setVentas, darkMode = 
             
             {/* BUSCADOR */}
             <div style={cardStyle}>
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <input
-                  ref={buscadorRef}
-                  type="text"
-                  placeholder="Escanee o busque producto..."
-                  value={busqueda}
-                  onChange={e => setBusqueda(e.target.value)}
-                  style={inputStyle}
-                />
-              </div>
+              <form
+                onSubmit={handleSumarManual}
+                style={{
+                  display: 'flex', gap: '10px', flexDirection: isMobile ? 'column' : 'row',
+                  alignItems: isMobile ? 'stretch' : 'center'
+                }}
+              >
+                <div style={{ flex: 1, position: 'relative', width: '100%' }}>
+                  <input
+                    ref={buscadorRef}
+                    type="text"
+                    placeholder="Escanee o busque producto..."
+                    value={busqueda}
+                    onChange={e => setBusqueda(e.target.value)}
+                    style={{ ...inputStyle, paddingLeft: '42px' }}
+                  />
+                  <span aria-hidden style={{ position: 'absolute', left: '15px', top: '50%', transform: 'translateY(-50%)', color: theme.subtext, pointerEvents: 'none', fontSize: '0.95rem' }}>🔍</span>
+                </div>
+
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                  <StepperCantidad
+                    valor={cantidadSeleccionada}
+                    onCambio={setCantidadSeleccionada}
+                    tono={tonoPos}
+                    ancho={68}
+                    alto={46}
+                    etiqueta="Cantidad a agregar"
+                  />
+                  <button
+                    type="submit"
+                    style={{
+                      backgroundColor: '#10b981', color: '#fff', border: 'none', borderRadius: '12px',
+                      padding: '0 24px', height: 46, cursor: 'pointer', fontWeight: 800, fontSize: '0.95rem',
+                      letterSpacing: '0.4px', transition: 'filter .15s ease', whiteSpace: 'nowrap'
+                    }}
+                    onMouseEnter={(e: any) => { e.currentTarget.style.filter = 'brightness(1.12)'; }}
+                    onMouseLeave={(e: any) => { e.currentTarget.style.filter = 'none'; }}
+                  >
+                    AÑADIR
+                  </button>
+                </div>
+              </form>
 
               {mostrarSugerencias && (
                 <div style={{ marginTop: '12px', border: `1px solid ${theme.border}`, borderRadius: '14px', overflow: 'hidden', backgroundColor: theme.card }}>
@@ -497,17 +578,27 @@ export default function Ventas({ stock, setStock, ventas, setVentas, darkMode = 
                 </div>
               )}
 
-              {carritoConPreciosVivos.map(item => (
+              {carritoConPreciosVivos.map(item => {
+                const clave = claveCarrito(item);
+                const variedades = variedadesDeItem(item);
+                return (
                 <div
-                   key={claveCarrito(item)}
+                   key={clave}
                   style={{
                     display: 'flex', justifyContent: 'space-between', padding: '14px 0',
-                    borderBottom: `1px solid ${theme.border}`, color: theme.text, alignItems: 'center', gap: '12px'
+                    borderBottom: `1px solid ${theme.border}`, color: theme.text, alignItems: 'center',
+                    gap: '12px', flexWrap: isMobile ? 'wrap' : 'nowrap'
                   }}
                 >
                   <div 
                     onClick={() => setImagenZoom(item)}
-                    style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: 0, cursor: 'pointer' }}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0, cursor: 'pointer',
+                      // En el celular el renglón ocupa todo el ancho y los controles
+                      // de la derecha pasan a la línea de abajo: si no, el stepper
+                      // se montaba sobre la variedad y el título se colapsaba.
+                      flex: isMobile ? '1 1 100%' : '1 1 0'
+                    }}
                   >
                     <div style={{
                       width: '48px', height: '48px', borderRadius: '10px', overflow: 'hidden', flexShrink: 0,
@@ -515,17 +606,56 @@ export default function Ventas({ stock, setStock, ventas, setVentas, darkMode = 
                       border: `1px solid ${theme.border}`
                     }}>
                       {item.imagen
-                        ? <img src={item.imagen} alt={item.nombre} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ? <img src={item.imagen} alt={tituloDe(item)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         : <span style={{ fontSize: '1.5rem' }}>📦</span>
                       }
                     </div>
 
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                         <span style={{ fontWeight: '600', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                           {item.nombre}{item.variedad_nombre ? ` · ${item.variedad_nombre}` : ''}
-                         </span>
-                        
+                      {/* NOMBRE DEL RENGLÓN: por defecto producto · variedad y se
+                          puede renombrar a mano (opcional; manda en el ticket). */}
+                      <div
+                        onClick={e => e.stopPropagation()}
+                        style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', minWidth: 0 }}
+                      >
+                        {editandoTitulo === clave ? (
+                          <input
+                            autoFocus
+                            value={borradorTitulo}
+                            onChange={e => setBorradorTitulo(e.target.value)}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') confirmarTitulo(clave);
+                              if (e.key === 'Escape') { setEditandoTitulo(null); setBorradorTitulo(''); }
+                            }}
+                            onBlur={() => confirmarTitulo(clave)}
+                            style={{ ...inputStyle, padding: '6px 8px', fontSize: '0.95rem', fontWeight: 700 }}
+                          />
+                        ) : (
+                          <>
+                            <span
+                              title={tituloDe(item)}
+                              style={{
+                                fontWeight: 700, fontSize: '1.02rem', overflow: 'hidden',
+                                textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0
+                              }}
+                            >
+                              {tituloDe(item)}
+                            </span>
+                            <button
+                              type="button"
+                              title="Renombrar este renglón (opcional)"
+                              aria-label="Renombrar este renglón"
+                              onClick={() => { setEditandoTitulo(clave); setBorradorTitulo(tituloDe(item)); }}
+                              style={{
+                                background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.85rem',
+                                padding: '2px 4px', borderRadius: '6px', flexShrink: 0, opacity: 0.75
+                              }}
+                              onMouseEnter={(e: any) => { e.currentTarget.style.opacity = 1; }}
+                              onMouseLeave={(e: any) => { e.currentTarget.style.opacity = 0.75; }}
+                            >✏️</button>
+                          </>
+                        )}
+
                         {item.precio_promo_texto && (
                           <span style={{ 
                             backgroundColor: item.esPromoAplicada ? 'rgba(16,185,129,0.15)' : 'rgba(244,63,94,0.12)', 
@@ -541,15 +671,29 @@ export default function Ventas({ stock, setStock, ventas, setVentas, darkMode = 
                       
                       <div 
                         onClick={e => e.stopPropagation()}
-                        style={{ fontSize: '0.85rem', color: theme.subtext, marginTop: '5px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                        style={{ fontSize: '0.85rem', color: theme.subtext, marginTop: '6px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}
                       >
+                        {variedades.length > 0 && (
+                          <select
+                            value={item.variedad_id || ''}
+                            onChange={e => cambiarVariedadEnCarrito(clave, e.target.value)}
+                            title="Variedad: define el precio y lo que se imprime"
+                            style={{
+                              ...inputStyle, width: 'auto', padding: '5px 8px', fontSize: '0.78rem',
+                              backgroundColor: theme.card, maxWidth: '170px'
+                            }}
+                          >
+                            <option value="">Sin variedad</option>
+                            {variedades.map((v: any) => <option key={v.id} value={v.id}>{v.nombre}</option>)}
+                          </select>
+                        )}
                         <span>Precio unitario:</span>
                         <input 
                           type="number" 
                           value={Math.round(item.precio_venta)} 
-                          onChange={e => manejarCambioPrecioInput(claveCarrito(item), e.target.value)}
+                          onChange={e => manejarCambioPrecioInput(clave, e.target.value)}
                           style={{
-                            ...inputStyle, width: '90px', padding: '4px 8px',
+                            ...inputStyle, width: '95px', padding: '4px 8px',
                             display: 'inline-block', marginBottom: 0, fontWeight: 'bold',
                             color: item.esPromoAplicada || item.precioModificado ? '#10b981' : theme.text
                           }} 
@@ -558,123 +702,134 @@ export default function Ventas({ stock, setStock, ventas, setVentas, darkMode = 
                     </div>
                   </div>
 
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px', flexShrink: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', backgroundColor: theme.innerBox, borderRadius: '8px', padding: '2px' }}>
-                      <button type="button" onClick={() => cambiarUnidadesManual(claveCarrito(item), -1)} style={countBtnStyle}>-</button>
-                      <input
-                        type="number"
-                        value={item.unidades}
-                        min="1"
-                        onChange={e => manejarCambioUnidadesInput(claveCarrito(item), e.target.value)}
-                        style={{ ...inputStyle, width: '50px', border: 'none', textAlign: 'center', backgroundColor: 'transparent', fontWeight: 'bold' }}
-                      />
-                      <button type="button" onClick={() => cambiarUnidadesManual(claveCarrito(item), 1)} style={countBtnStyle}>+</button>
-                    </div>
-                    <strong style={{ fontFamily: 'monospace', fontSize: '1.05rem', color: '#10b981' }}>
-                      ${Math.round(item.precio_venta * item.unidades).toLocaleString()}
-                    </strong>
-                  </div>
-                </div>
-              ))}
-
-              {/* TOTALES Y ACCIONES */}
-              {carrito.length > 0 && (
-                <div style={{ marginTop: '20px', display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                  
-                  <div style={{ 
-                    backgroundColor: theme.innerBox, 
-                    padding: '16px', 
-                    borderRadius: '12px', 
-                    border: `1px dashed ${theme.border}`,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '10px'
+                  <div style={{
+                    display: 'flex', gap: '8px', flexShrink: 0,
+                    flexDirection: isMobile ? 'row' : 'column',
+                    alignItems: isMobile ? 'center' : 'flex-end',
+                    justifyContent: isMobile ? 'space-between' : 'flex-end',
+                    width: isMobile ? '100%' : 'auto'
                   }}>
-                    <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: theme.text }}>
-                      ⚡ AJUSTE PORCENTUAL MASIVO SOBRE EL CARRITO
-                    </label>
-                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexDirection: isMobile ? 'column' : 'row' }}>
-                      <input 
-                        type="number" 
-                        placeholder="Ej: 10 para 10%" 
-                        value={porcentajeAjuste}
-                        onChange={e => setPorcentajeAjuste(e.target.value)}
-                        style={{ ...inputStyle, flex: 1, backgroundColor: theme.card }}
-                        min="1"
-                      />
-                      <div style={{ display: 'flex', gap: '8px', width: isMobile ? '100%' : 'auto' }}>
-                        <button 
-                          type="button"
-                          onClick={() => aplicarAjustePorcentualMasivo('recargo')}
-                          style={{ flex: 1, padding: '10px 16px', backgroundColor: '#3b82f6', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.85rem', whiteSpace: 'nowrap' }}
-                        >
-                          ▲ Recargar %
-                        </button>
-                        <button 
-                          type="button"
-                          onClick={() => aplicarAjustePorcentualMasivo('descuento')}
-                          style={{ flex: 1, padding: '10px 16px', backgroundColor: '#ef4444', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.85rem', whiteSpace: 'nowrap' }}
-                        >
-                          ▼ Descontar %
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  <select value={listaSeleccionada} onChange={e => setListaSeleccionada(e.target.value as any)} style={inputStyle}>
-                    <option value="precio_minorista">🍏 Tarifa Minorista Estándar</option>
-                    <option value="precio_promo">🔥 Forzar Lista Promociones</option>
-                  </select>
-                  
-                  <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '15px' }}>
-                    <input
-                      type="number"
-                      placeholder="Descuento manual $"
-                      value={descuento}
-                      onChange={e => setDescuento(Number(e.target.value))}
-                      style={inputStyle}
+                    <StepperCantidad
+                      valor={item.unidades}
+                      onCambio={n => manejarCambioUnidades(clave, n)}
+                      onLlegarAlMinimo={() => eliminarLinea(clave)}
+                      tono={tonoPos}
+                      ancho={58}
+                      alto={40}
+                      etiqueta={`Cantidad de ${item.nombre}`}
                     />
-                    <select value={metodoPago} onChange={e => setMetodoPago(e.target.value)} style={inputStyle}>
-                      <option>Efectivo</option>
-                      <option>Transferencia</option>
-                      <option>Tarjeta</option>
-                      <option>Cuenta Corriente</option>
-                    </select>
+                    <strong style={{ fontFamily: 'monospace', fontSize: '1.05rem', color: '#10b981' }}>
+                      ${(item.precio_venta * item.unidades).toLocaleString('es-AR')}
+                    </strong>
+                    <button
+                      type="button"
+                      onClick={() => eliminarLinea(clave)}
+                      title="Quitar del carrito"
+                      aria-label="Quitar del carrito"
+                      style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '1.05rem', padding: '4px' }}
+                    >🗑️</button>
                   </div>
-
-                  {descuento > 0 && (
-                    <div style={{ textAlign: 'right', fontSize: '0.9rem', color: theme.subtext }}>
-                      Subtotal: ${subtotalCarrito().toLocaleString()} — Descuento: -${descuento.toLocaleString()}
-                    </div>
-                  )}
-
-                  <div style={{ textAlign: 'right', padding: '15px', backgroundColor: theme.innerBox, borderRadius: '10px' }}>
-                    <div style={{ fontSize: '1.8rem', fontWeight: '900', color: '#10b981' }}>
-                      TOTAL CAJA: ${totalConDescuento().toLocaleString()}
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={finalizarVenta}
-                    style={{
-                      backgroundColor: '#10b981', color: '#fff', border: 'none',
-                      padding: '18px', borderRadius: '10px', fontWeight: '900',
-                      cursor: 'pointer', width: '100%', fontSize: '1.1rem'
-                    }}
-                  >
-                    ✅ COMPLETAR OPERACIÓN
-                  </button>
                 </div>
-              )}
+                );
+              })}
+
             </div>
 
           </div>
 
-          {/* RESUMEN LATERAL */}
-          {ticketFinal && (
-            <div style={{ position: isMobile ? 'static' : 'sticky', top: '20px', width: isMobile ? '100%' : '320px' }}>
+          {/* RESUMEN LATERAL: totales, cobro y último ticket. Sticky en
+              escritorio; en el celular queda debajo del carrito. */}
+          <div style={{
+            position: isMobile ? 'static' : 'sticky', top: '20px',
+            width: isMobile ? '100%' : '360px', display: 'flex',
+            flexDirection: 'column', gap: '20px', boxSizing: 'border-box'
+          }}>
+            <div style={cardStyle}>
+              <h3 style={{ margin: '0 0 15px', color: theme.text, fontSize: '0.85rem', fontWeight: 800, letterSpacing: '0.4px' }}>
+                💳 RESUMEN Y COBRO
+              </h3>
+
+              <AjustePorcentual
+                valor={porcentajeAjuste}
+                onValor={setPorcentajeAjuste}
+                onAplicar={aplicarAjustePorcentualMasivo}
+                tono={tonoPos}
+                etiqueta="⚡ AJUSTE PORCENTUAL MASIVO SOBRE EL CARRITO"
+                placeholder="Ej: 10 equivale a 10%"
+              />
+
+              <div style={{ marginTop: '16px' }}>
+                <label style={{ fontSize: '0.75rem', color: theme.subtext, fontWeight: 700, display: 'block', marginBottom: '6px' }}>LISTA DE PRECIOS</label>
+                <select value={listaSeleccionada} onChange={e => setListaSeleccionada(e.target.value as any)} style={inputStyle}>
+                  <option value="precio_minorista">🍏 Tarifa Minorista Estándar</option>
+                  <option value="precio_promo">🔥 Forzar Lista Promociones</option>
+                </select>
+              </div>
+
+              <div style={{ marginTop: '14px' }}>
+                <label style={{ fontSize: '0.75rem', color: theme.subtext, fontWeight: 700, display: 'block', marginBottom: '6px' }}>DESCUENTO DIRECTO ($)</label>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  placeholder="0"
+                  value={descuento}
+                  onChange={e => setDescuento(Number(e.target.value))}
+                  style={inputStyle}
+                />
+              </div>
+
+              <div style={{ marginTop: '14px' }}>
+                <label style={{ fontSize: '0.75rem', color: theme.subtext, fontWeight: 700, display: 'block', marginBottom: '6px' }}>MÉTODO DE PAGO</label>
+                <select value={metodoPago} onChange={e => setMetodoPago(e.target.value)} style={inputStyle}>
+                  <option>Efectivo</option>
+                  <option>Transferencia</option>
+                  <option>Tarjeta</option>
+                  <option>Cuenta Corriente</option>
+                </select>
+              </div>
+
+              <div style={{ marginTop: '18px', borderTop: `1px dashed ${theme.border}`, paddingTop: '15px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: theme.subtext, marginBottom: '6px' }}>
+                  <span>Subtotal</span>
+                  <span style={{ fontFamily: 'monospace' }}>${subtotalCarrito().toLocaleString()}</span>
+                </div>
+                {descuento > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: '#10b981', marginBottom: '6px' }}>
+                    <span>Descuento</span>
+                    <span style={{ fontFamily: 'monospace' }}>−${descuento.toLocaleString()}</span>
+                  </div>
+                )}
+                <div style={{
+                  backgroundColor: theme.bg, padding: '14px', borderRadius: '14px',
+                  border: `1px solid ${theme.border}`, textAlign: 'right', marginTop: '10px'
+                }}>
+                  <div style={{ fontSize: '0.7rem', color: theme.subtext, fontWeight: 700, letterSpacing: '0.6px' }}>TOTAL CAJA</div>
+                  <div style={{ fontSize: '2rem', fontWeight: 900, color: '#10b981', fontFamily: 'monospace', lineHeight: 1.15 }}>
+                    ${totalConDescuento().toLocaleString()}
+                  </div>
+                </div>
+
+                <button
+                  onClick={finalizarVenta}
+                  disabled={carrito.length === 0}
+                  style={{
+                    width: '100%', marginTop: '15px', backgroundColor: '#10b981', color: '#fff',
+                    border: 'none', padding: '17px', borderRadius: '14px', fontWeight: 900,
+                    fontSize: '1.05rem', cursor: carrito.length === 0 ? 'not-allowed' : 'pointer',
+                    opacity: carrito.length === 0 ? 0.45 : 1, transition: 'filter .15s ease',
+                    minHeight: 54
+                  }}
+                  onMouseEnter={(e: any) => { if (carrito.length > 0) e.currentTarget.style.filter = 'brightness(1.12)'; }}
+                  onMouseLeave={(e: any) => { e.currentTarget.style.filter = 'none'; }}
+                >
+                  ✅ COMPLETAR OPERACIÓN
+                </button>
+              </div>
+            </div>
+
+            {ticketFinal && (
               <div style={cardStyle}>
-                <h4 style={{ color: theme.text, marginBottom: '10px', marginTop: 0 }}>Último Ticket Emitido</h4>
+                <h4 style={{ color: theme.text, marginBottom: '10px', marginTop: 0, fontSize: '0.9rem' }}>Último Ticket Emitido</h4>
                 <p style={{ color: theme.subtext, fontSize: '0.9rem', lineHeight: '1.5' }}>
                   Monto neto: <strong style={{ color: '#10b981' }}>${ticketFinal.total.toLocaleString()}</strong><br />
                   Medio pago: <strong>{ticketFinal.metodo_pago}</strong><br />
@@ -687,8 +842,8 @@ export default function Ventas({ stock, setStock, ventas, setVentas, darkMode = 
                   🖨️ RE-IMPRIMIR TICKET
                 </button>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       )}
 
