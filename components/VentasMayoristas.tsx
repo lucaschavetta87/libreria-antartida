@@ -773,21 +773,6 @@ export default function VentasMayoristas({ stock, setStock, ventas, setVentas, d
                 </select>
               </div>
 
-              {/* En Cuenta Corriente no se muestra el descuento de la cuenta:
-                  se carga el total tal como se ve, con lo que ya tiene el
-                  cliente en su cuenta corriente. */}
-              {metodoPago !== 'Cuenta Corriente' && (
-                <div style={{ marginTop: '14px' }}>
-                  <label style={{ fontSize: '0.75rem', color: '#8b5cf6', fontWeight: 700, display: 'block', marginBottom: '6px' }}>DESCUENTO ASIGNADO (GREMIO)</label>
-                  <input
-                    type="text"
-                    value={`$${descuentoGremioCalculado.toLocaleString()} (-${infoClienteActivo ? infoClienteActivo.descuento_especial : 0}%)`}
-                    style={{ ...inputStyle, border: '1px solid #8b5cf6', fontFamily: 'monospace', fontWeight: 'bold' }}
-                    disabled
-                  />
-                </div>
-              )}
-
               <div style={{ marginTop: '16px', borderTop: `1px dashed ${theme.border}`, paddingTop: '15px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', gap: '8px' }}>
                   <label style={{ fontSize: '0.72rem', color: theme.subtext, fontWeight: 700 }}>
@@ -823,6 +808,22 @@ export default function VentasMayoristas({ stock, setStock, ventas, setVentas, d
                         <option key={c.id} value={c.id}>{c.nombre}</option>
                       ))}
                     </select>
+                    {/* El descuento de la cuenta NO se muestra en ningún lado:
+                        solo se avisa que la cuenta está en Cuenta Corriente (el
+                        % sigue aplicándose al total y en el ticket tampoco
+                        aparece). */}
+                    {infoClienteActivo && (
+                      <div style={{ marginTop: '8px' }}>
+                        <span style={{
+                          display: 'inline-block', backgroundColor: 'rgba(139, 92, 246, 0.15)',
+                          color: '#8b5cf6', border: '1px solid rgba(139, 92, 246, 0.35)',
+                          padding: '4px 11px', borderRadius: '999px', fontSize: '0.72rem',
+                          fontWeight: 800, letterSpacing: '0.3px'
+                        }}>
+                          🟣 CUENTA CORRIENTE
+                        </span>
+                      </div>
+                    )}
                     {!clienteSeleccionado && (
                       <p style={{ margin: '8px 0 0', fontSize: '0.75rem', color: theme.subtext }}>
                         {metodoPago === 'Cuenta Corriente'
@@ -839,12 +840,6 @@ export default function VentasMayoristas({ stock, setStock, ventas, setVentas, d
                   <span>Subtotal</span>
                   <span style={{ fontFamily: 'monospace' }}>${subtotalCarrito().toLocaleString()}</span>
                 </div>
-                {descuentoGremioCalculado > 0 && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: '#10b981', marginBottom: '6px' }}>
-                    <span>Descuento gremio</span>
-                    <span style={{ fontFamily: 'monospace' }}>−${descuentoGremioCalculado.toLocaleString()}</span>
-                  </div>
-                )}
                 <div style={{
                   backgroundColor: theme.bg, padding: '14px', borderRadius: '14px',
                   border: `1px solid ${theme.border}`, textAlign: 'right', marginTop: '10px'
