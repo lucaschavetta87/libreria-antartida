@@ -1,9 +1,11 @@
 "use client";
 import React from 'react';
+import OjoVisibilidad from './ui/OjoVisibilidad';
 
 export default function TablaStock({
   isMobile, itemsPaginaActual, seleccionados, manejarSeleccionIndividual, setProductoSeleccionado,
-  obtenerLabelCategoria, activarEdicion, borrarItem, actionBtnStyle, darkMode, theme
+  obtenerLabelCategoria, activarEdicion, borrarItem, actionBtnStyle, darkMode, theme,
+  onAlternarVisibilidad
 }: any) {
   const precioMinorista = (item: any) => {
     const variedades = Array.isArray(item.variedades) ? item.variedades : [];
@@ -33,7 +35,8 @@ export default function TablaStock({
               <div style={{ width: '50px', height: '50px', borderRadius: '10px', overflow: 'hidden', flexShrink: 0, backgroundColor: theme.card, display: 'flex', alignItems: 'center', justifyContent: 'center', border: `1px solid ${theme.border}` }}>
                 {item.imagen_url ? <img src={item.imagen_url} alt={item.nombre} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ fontSize: '1.4rem' }}>📦</span>}
               </div>
-              <div style={{ color: theme.text, fontWeight: '700', flex: 1, paddingRight: '25px' }}>{item.nombre}</div>
+              <OjoVisibilidad visible={item.visible_web !== false} tipo="producto" oscuro={darkMode} onToggle={() => onAlternarVisibilidad && onAlternarVisibilidad(item)} />
+              <div style={{ color: theme.text, fontWeight: '700', flex: 1, paddingRight: '25px', opacity: item.visible_web === false ? 0.45 : 1 }}>{item.nombre}</div>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', fontSize: '0.8rem' }}>
               <div>Costo: <strong>${item.precio_costo}</strong></div>
@@ -60,6 +63,7 @@ export default function TablaStock({
         <tr>
           <th style={{ width: '38px' }}></th>
           <th style={{ width: '48px' }}></th>
+          <th style={{ width: '34px' }} title="Visibilidad en la web"></th>
           <th>Producto</th>
           <th>Categoría</th>
           <th style={{ textAlign: 'right' }}>Costo</th>
@@ -72,7 +76,7 @@ export default function TablaStock({
       </thead>
       <tbody>
         {itemsPaginaActual.length === 0 ? (
-          <tr><td colSpan={10} style={{ padding: '30px', textAlign: 'center', color: theme.subtext }}>No se encontraron productos.</td></tr>
+          <tr><td colSpan={11} style={{ padding: '30px', textAlign: 'center', color: theme.subtext }}>No se encontraron productos.</td></tr>
         ) : (
           itemsPaginaActual.map((item: any) => (
             <tr
@@ -93,7 +97,10 @@ export default function TablaStock({
                   {item.imagen_url ? <img src={item.imagen_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ fontSize: '1.1rem' }}>📦</span>}
                 </div>
               </td>
-              <td style={{ padding: '14px 12px', color: theme.text, fontWeight: '600', maxWidth: '260px' }}>{item.nombre}</td>
+              <td style={{ padding: '10px 4px', textAlign: 'center' }}>
+                <OjoVisibilidad visible={item.visible_web !== false} tipo="producto" oscuro={darkMode} onToggle={() => onAlternarVisibilidad && onAlternarVisibilidad(item)} />
+              </td>
+              <td style={{ padding: '14px 12px', color: theme.text, fontWeight: '600', maxWidth: '260px', opacity: item.visible_web === false ? 0.45 : 1 }}>{item.nombre}</td>
               <td style={{ color: theme.subtext, fontSize: '0.85rem' }}>{obtenerLabelCategoria(item.categoria)}</td>
               <td style={{ textAlign: 'right', color: theme.subtext }} className="precio">${Number(item.precio_costo || 0).toLocaleString('es-AR')}</td>
               <td style={{ textAlign: 'right', color: theme.subtext }} className="precio">${Number(item.precio_iva || 0).toLocaleString('es-AR')}</td>

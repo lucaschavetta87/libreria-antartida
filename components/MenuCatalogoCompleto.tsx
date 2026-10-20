@@ -5,6 +5,8 @@ export type OpcionesCatalogoCompleto = {
   incluirSinStock: boolean;
   incluirVariedades: boolean;
   incluirCodigos: boolean;
+  // Productos apagados con el ojito en la web: por defecto quedan afuera.
+  incluirOcultos: boolean;
 };
 
 type Props = {
@@ -15,6 +17,7 @@ type Props = {
   setOpciones: (o: OpcionesCatalogoCompleto) => void;
   generandoPdf?: boolean;
   generandoExcel?: boolean;
+  ocultosWeb?: number;
   onPdf: () => void;
   onExcel: () => void;
   menuStyle?: React.CSSProperties;
@@ -25,7 +28,7 @@ type Props = {
 // agrupado por categoría / subcategoría / sub-subcategoría.
 export default function MenuCatalogoCompleto({
   darkMode, btnBaseStyle, totalProductos, opciones, setOpciones,
-  generandoPdf, generandoExcel, onPdf, onExcel, menuStyle
+  generandoPdf, generandoExcel, ocultosWeb = 0, onPdf, onExcel, menuStyle
 }: Props) {
   const [abierto, setAbierto] = useState(false);
   const [hover, setHover] = useState<string | null>(null);
@@ -118,6 +121,7 @@ export default function MenuCatalogoCompleto({
           {opcion('incluirSinStock', 'Incluir productos sin stock')}
           {opcion('incluirVariedades', 'Incluir variedades (1 fila por variedad)')}
           {opcion('incluirCodigos', 'Incluir código de producto')}
+          {(ocultosWeb > 0 || opciones.incluirOcultos) && opcion('incluirOcultos', `Incluir ocultos en la web${ocultosWeb > 0 ? ` (${ocultosWeb})` : ''}`)}
 
           <div style={{ height: '1px', backgroundColor: t.border, margin: '8px 4px' }} />
           <div style={{ fontSize: '0.68rem', fontWeight: 800, color: t.subtext, textTransform: 'uppercase', letterSpacing: '0.05em', padding: '4px 8px' }}>

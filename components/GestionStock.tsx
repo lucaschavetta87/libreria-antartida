@@ -13,6 +13,7 @@ import CodigoBarras from './CodigoBarras';
 import MenuBotonCategorias from './MenusPDF';
 import MenuCatalogoCompleto, { OpcionesCatalogoCompleto } from './MenuCatalogoCompleto';
 import ModalCategoria from './ModalCategoria';
+import OjoVisibilidad, { TipoOcultable, ocultaEnWeb } from './ui/OjoVisibilidad';
 import {
   PRINCIPALES_POR_DEFECTO, calcularPrincipales, esPrincipal as esCatPrincipal,
   generarIdCategoria, leerPrincipalesLocal, guardarPrincipalesLocal, limpiarPrincipalesLocal
@@ -1057,7 +1058,7 @@ function VariedadesEditor({ variedades, onChange, darkMode, subirImagen }: any) 
   );
 }
 
-function ProductoCard({ item, darkMode, seleccionado, onToggle, onOpen, onEdit, onDelete, onDragStart }: any) {
+function ProductoCard({ item, darkMode, seleccionado, onToggle, onOpen, onEdit, onDelete, onDragStart, onToggleVisibilidad }: any) {
   const t = {
     card: darkMode ? '#1e293b' : '#ffffff',
     imgBg: '#ffffff',
@@ -1075,15 +1076,18 @@ function ProductoCard({ item, darkMode, seleccionado, onToggle, onOpen, onEdit, 
     <div onClick={onOpen} draggable onDragStart={(e) => onDragStart && onDragStart(e, item)} title="Arrastrá esta tarjeta a una carpeta" style={{ position: 'relative', display: 'flex', flexDirection: 'column', backgroundColor: t.card, border: `1px solid ${seleccionado ? '#3b82f6' : t.border}`, borderRadius: '18px', overflow: 'hidden', cursor: 'pointer', boxShadow: seleccionado ? '0 0 0 2px rgba(59,130,246,0.35)' : 'none' }}>
       {item.sin_stock && <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.05)', zIndex: 1, pointerEvents: 'none' }} />}
       <input type="checkbox" checked={seleccionado} onChange={() => {}} onClick={(e) => onToggle(item.id, e)} style={{ position: 'absolute', top: '10px', left: '10px', width: '18px', height: '18px', zIndex: 3, cursor: 'pointer' }} />
-      
+      <span style={{ position: 'absolute', top: '10px', left: '36px', zIndex: 3, display: 'flex', alignItems: 'center', backgroundColor: darkMode ? 'rgba(15,23,42,0.72)' : 'rgba(255,255,255,0.86)', padding: '3px 6px', borderRadius: '999px' }}>
+        <OjoVisibilidad visible={item.visible_web !== false} tipo="producto" oscuro={darkMode} tamanio="0.95rem" onToggle={() => onToggleVisibilidad && onToggleVisibilidad(item)} />
+      </span>
+
       {tienePromo && <span style={{ position: 'absolute', top: '10px', right: '10px', zIndex: 3, backgroundColor: '#dc2626', color: 'white', fontSize: '0.72rem', fontWeight: 800, padding: '6px 10px', borderRadius: '999px' }}>¡Oferta!</span>}
       {item.sin_stock && <span style={{ position: 'absolute', top: '10px', right: tienePromo ? '80px' : '10px', zIndex: 3, backgroundColor: '#374151', color: 'white', fontSize: '0.72rem', fontWeight: 800, padding: '6px 10px', borderRadius: '999px' }}>🚫 Sin Stock</span>}
 
-      <div style={{ height: '180px', backgroundColor: t.imgBg, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '12px', opacity: item.sin_stock ? 0.6 : 1 }}>
+      <div style={{ height: '180px', backgroundColor: t.imgBg, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '12px', opacity: (item.sin_stock ? 0.6 : 1) * (item.visible_web === false ? 0.5 : 1) }}>
         {item.imagen_url ? <img src={item.imagen_url} alt={item.nombre} loading="lazy" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} /> : <span style={{ fontSize: '3rem', opacity: 0.5 }}>📦</span>}
       </div>
       <div style={{ padding: '12px 14px 14px', display: 'flex', flexDirection: 'column', gap: '6px', flex: 1, zIndex: 2 }}>
-        <div style={{ textAlign: 'center', fontSize: '0.92rem', fontWeight: 600, color: t.text, lineHeight: 1.3, minHeight: '2.4em', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{item.nombre}</div>
+        <div style={{ textAlign: 'center', fontSize: '0.92rem', fontWeight: 600, color: t.text, lineHeight: 1.3, minHeight: '2.4em', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', opacity: item.visible_web === false ? 0.5 : 1 }}>{item.nombre}</div>
          <div style={{ textAlign: 'center', fontSize: '1.1rem', fontWeight: 800, color: '#16a34a' }}>
            {preciosMinoristas.length > 0 && 'Desde '}{plata(precioMinoristaMostrado)}
          </div>
@@ -1112,7 +1116,8 @@ function ProductoCard({ item, darkMode, seleccionado, onToggle, onOpen, onEdit, 
 function PanelCarpetas({
   darkMode, categorias, sel, seleccionar, conteos, totalStock, subsDe, subsubsDe,
   onCrearSub, onCrearSubSub, onRenombrarSub, onEliminarSub, onRenombrarSubSub, onEliminarSubSub, onGestionar, onDropProductos, onDropCarpeta,
-  onRenombrarCategoria, onEliminarCategoria, principalesIds, onEditarCategoria, onNuevaPrincipal
+  onRenombrarCategoria, onEliminarCategoria, principalesIds, onEditarCategoria, onNuevaPrincipal,
+  onAlternarCategoria, onAlternarSub, onAlternarSubSub
 }: any) {
   const [abiertas, setAbiertas] = useState<Record<string, boolean>>({});
   const [mostrarOtras, setMostrarOtras] = useState(false);
@@ -1156,6 +1161,9 @@ function PanelCarpetas({
   });
 
   const contador = (n: number) => <span style={{ marginLeft: 'auto', fontSize: '0.72rem', color: t.subtext, fontWeight: 600 }}>{n}</span>;
+  // Las carpetas ocultas en la web se atenúan para que se vea su estado.
+  const estiloOculta = (fila: any): React.CSSProperties =>
+    ocultaEnWeb(fila) ? { opacity: 0.42 } : {};
   const estiloDrop = (key: string): React.CSSProperties => hoverDrop === key ? { outline: '2px dashed #3b82f6', outlineOffset: '-2px', backgroundColor: t.activeBg } : {};
 
   const dropProps = (key: string, catId: string, subKey: string | null, esCategoria: boolean, subsubKey: string | null = null) => ({
@@ -1232,7 +1240,8 @@ function PanelCarpetas({
           >
             <span onClick={(e) => { e.stopPropagation(); setAbiertas(p => ({ ...p, [catId]: !estaAbierta })); }} style={{ width: '14px', fontSize: '0.7rem', color: t.subtext }}>{estaAbierta ? '▼' : '▶'}</span>
             <span>{estaAbierta ? '📂' : '📁'}</span>
-            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cat.label}</span>
+            <OjoVisibilidad visible={!ocultaEnWeb(cat)} tipo="categoria" oscuro={darkMode} onToggle={() => onAlternarCategoria(cat)} />
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', ...estiloOculta(cat) }}>{cat.label}</span>
             {(principalesIds || []).includes(catId) && (
               <span title="Categoría principal" style={{
                 fontSize: '0.62rem', fontWeight: 800, color: '#7c3aed', flexShrink: 0,
@@ -1260,7 +1269,8 @@ function PanelCarpetas({
                 <div key={s.key}>
                   <div draggable onDragStart={(e) => { e.dataTransfer.setData(MIME_STOCK, JSON.stringify({ tipo: 'carpeta', cat: catId, sub: s.key })); e.dataTransfer.effectAllowed = 'move'; }} style={{ ...filaBase(enSub), fontWeight: enSub ? 800 : 500, fontSize: '0.86rem', ...estiloDrop(catId + '|' + s.key) }} onClick={() => seleccionar(catId, s.key)} onMouseEnter={() => setHoverFila(catId + '|' + s.key)} onMouseLeave={() => setHoverFila(null)} {...dropProps(catId + '|' + s.key, catId, s.key, false)}>
                     <span>{enSub ? '📂' : '📁'}</span>
-                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.label}</span>
+                    <OjoVisibilidad visible={!ocultaEnWeb(s.fila)} tipo="subcategoria" oscuro={darkMode} onToggle={() => onAlternarSub(catId, s)} />
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', ...estiloOculta(s.fila) }}>{s.label}</span>
                     {accionesFila(catId + '|' + s.key, activa, () => onRenombrarSub(catId, s), () => onEliminarSub(catId, s)) || contador(s.count)}
                   </div>
                   {(hijos.length > 0 || enSub) && (
@@ -1270,7 +1280,8 @@ function PanelCarpetas({
                         return (
                           <div key={h.key} style={{ ...filaBase(activaH), fontWeight: activaH ? 800 : 500, fontSize: '0.82rem', ...estiloDrop(catId + '|' + s.key + '|' + h.key) }} onClick={() => seleccionar(catId, s.key, h.key)} onMouseEnter={() => setHoverFila(catId + '|' + s.key + '|' + h.key)} onMouseLeave={() => setHoverFila(null)} {...dropProps(catId + '|' + s.key + '|' + h.key, catId, s.key, false, h.key)}>
                             <span>{activaH ? '📂' : '📁'}</span>
-                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{h.label}</span>
+                            <OjoVisibilidad visible={!ocultaEnWeb(h.fila)} tipo="subsubcategoria" tamanio="0.85rem" oscuro={darkMode} onToggle={() => onAlternarSubSub(catId, s.key, h)} />
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', ...estiloOculta(h.fila) }}>{h.label}</span>
                             {accionesFila(catId + '|' + s.key + '|' + h.key, activaH, () => onRenombrarSubSub(catId, s.key, h), () => onEliminarSubSub(catId, s.key, h), 'Renombrar subcarpeta', 'Eliminar subcarpeta') || contador(h.count)}
                           </div>
                         );
@@ -1361,12 +1372,16 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
   const [mensajeEstado, setMensajeEstado] = useState('');
 
   // Catálogo mayorista completo (PDF / Excel con TODAS las categorías)
-  const [opcionesCatalogo, setOpcionesCatalogo] = useState<OpcionesCatalogoCompleto>({ incluirSinStock: true, incluirVariedades: true, incluirCodigos: true });
+  const [opcionesCatalogo, setOpcionesCatalogo] = useState<OpcionesCatalogoCompleto>({ incluirSinStock: true, incluirVariedades: true, incluirCodigos: true, incluirOcultos: false });
   const [generandoCatalogo, setGenerandoCatalogo] = useState<'pdf' | 'excel' | null>(null);
 
   // --- Categorías principales editables ---
   const [modalCategoria, setModalCategoria] = useState<{ id: string; label: string; imagen_url?: string | null; es_principal?: boolean | null } | null | undefined>(undefined);
   const [soportaEsPrincipal, setSoportaEsPrincipal] = useState(true);
+  // La columna `visible_web` es la que usa el ojito para ocultar cosas en la web
+  // pública. `null` = todavía no se pudo comprobar, `false` = no existe en
+  // Supabase (falta correr scripts/visibilidad_web.sql), `true` = disponible.
+  const [soportaVisibleWeb, setSoportaVisibleWeb] = useState<boolean | null>(null);
   const [guardandoCategoria, setGuardandoCategoria] = useState(false);
 
   const [categorias, setCategorias] = useState<{ id: string; label: string; imagen_url?: string | null }[]>(CATEGORIAS_DEFAULT);
@@ -1406,20 +1421,38 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Las categorías principales se marcan en la columna `es_principal`. Si esa
-  // columna todavía no existe en Supabase, el sistema sigue funcionando con un
-  // respaldo local para que se pueda probar sin romper nada.
+  // Las categorías principales se marcan en la columna `es_principal` y el
+  // "ojito" de la web usa `visible_web`. Si alguna de las dos todavía no existe
+  // en Supabase, el sistema sigue funcionando y solo se apaga esa función,
+  // para que se pueda probar sin romper nada.
   const cargarCategorias = async () => {
     try {
-      const conPrincipal = await supabase.from('categorias').select('id, label, orden, imagen_url, es_principal');
-      if (!conPrincipal.error && conPrincipal.data) {
-        setCategorias(conPrincipal.data as any);
+      const completas = await supabase.from('categorias').select('id, label, orden, imagen_url, es_principal, visible_web');
+      if (!completas.error && completas.data) {
+        setCategorias(completas.data as any);
         setSoportaEsPrincipal(true);
+        setSoportaVisibleWeb(true);
+        return;
+      }
+
+      const sinOjito = await supabase.from('categorias').select('id, label, orden, imagen_url, es_principal');
+      if (!sinOjito.error && sinOjito.data) {
+        setCategorias(sinOjito.data as any);
+        setSoportaEsPrincipal(true);
+        setSoportaVisibleWeb(false);
+        toast.avisar(
+          'El ojito de visibilidad todavía no está disponible: falta la columna visible_web en Supabase (ejecutá scripts/visibilidad_web.sql).',
+          'alerta',
+          9000
+        );
         return;
       }
 
       const { data, error } = await supabase.from('categorias').select('*');
-      if (!error && data && data.length > 0) setCategorias(data);
+      if (!error && data) {
+        setCategorias(data as any);
+        setSoportaVisibleWeb(data.length > 0 && typeof data[0] === 'object' && 'visible_web' in data[0]);
+      }
       setSoportaEsPrincipal(false);
       toast.avisar(
         'Las categorías principales se guardan solo en esta computadora hasta que se agregue la columna es_principal en Supabase.',
@@ -1442,6 +1475,130 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
       if (!error && data) setSubsubsDB(data);
     } catch (err) { console.error('Error al cargar sub-subcategorías:', err); }
   };
+
+  // ---------------------------------------------------------------
+  // Ojito de visibilidad en la web pública (columna `visible_web`)
+  // ---------------------------------------------------------------
+  // Oculto de forma efectiva = el producto está apagado, o lo está su categoría,
+  // su subcategoría o su sub-subcategoría. Es lo que se usa en los catálogos.
+  const ocultaEfectivaEnWeb = (p: any): boolean => {
+    if (!p) return false;
+    if (ocultaEnWeb(p)) return true;
+    const cat = String(p.categoria || '').toLowerCase();
+    const catFila = (categorias || []).find(c => String(c.id).toLowerCase() === cat);
+    if (ocultaEnWeb(catFila)) return true;
+    const sub = String(p.subcategoria || '').toLowerCase().trim();
+    if (sub) {
+      const subFila = [...subcategoriasDB, ...subsLocales].find(
+        s => String(s.categoria).toLowerCase() === cat && String(s.nombre || '').trim().toLowerCase() === sub
+      );
+      if (ocultaEnWeb(subFila)) return true;
+      const subsub = String(p.subsubcategoria || '').toLowerCase().trim();
+      if (subsub) {
+        const subsubFila = [...subsubsDB, ...subsubLocales].find(
+          s => String(s.categoria).toLowerCase() === cat
+            && String(s.subcategoria || '').toLowerCase() === sub
+            && String(s.nombre || '').trim().toLowerCase() === subsub
+        );
+        if (ocultaEnWeb(subsubFila)) return true;
+      }
+    }
+    return false;
+  };
+
+  // Si la columna `visible_web` todavía no existe en Supabase se explica qué
+  // hacer; cualquier otro fallo se informa tal cual.
+  const avisarErrorVisibilidad = (err: any) => {
+    const msg = String(err?.message || '');
+    if (/column|schema cache|visible_web/i.test(msg)) {
+      setSoportaVisibleWeb(false);
+      toast.avisar(
+        'El ojito necesita la columna visible_web. Ejecutá scripts/visibilidad_web.sql en el editor SQL de Supabase y recargá la página.',
+        'alerta',
+        10000
+      );
+    } else {
+      toast.error('No se pudo guardar la visibilidad en la web: ' + msg);
+    }
+  };
+
+  // Escribe el cambio en Supabase y, si algo sale mal, revierte lo que se
+  // mostró en pantalla.
+  const alternarVisibilidad = async (
+    tabla: 'categorias' | 'subcategorias' | 'subsubcategorias' | 'stock',
+    id: any,
+    visibleActual: boolean,
+    aplicarLocal: (visible: boolean) => void
+  ) => {
+    // Ya se comprobó que falta la columna: no se maquilla nada en pantalla.
+    if (soportaVisibleWeb === false) { avisarErrorVisibilidad({ message: 'column "visible_web" does not exist' }); return; }
+    const nuevo = !visibleActual;
+    aplicarLocal(nuevo); // cambio optimista
+    try {
+      const { error } = await supabase.from(tabla).update({ visible_web: nuevo }).eq('id', id);
+      if (error) throw error;
+      if (soportaVisibleWeb === null) setSoportaVisibleWeb(true);
+    } catch (err: any) {
+      aplicarLocal(visibleActual); // se revierte
+      avisarErrorVisibilidad(err);
+    }
+  };
+
+  const alternarVisibilidadCategoria = async (cat: any) => {
+    if (!cat || cat.id == null) return;
+    await alternarVisibilidad('categorias', cat.id, !ocultaEnWeb(cat), v =>
+      setCategorias(prev => prev.map(c => String(c.id).toLowerCase() === String(cat.id).toLowerCase() ? { ...c, visible_web: v } : c))
+    );
+  };
+
+  // Las carpetas que todavía no tienen fila propia (salen de los productos)
+  // se dan de alta al primer toque, igual que al renombrarlas.
+  const alternarVisibilidadSub = async (catId: string, carpeta: any) => {
+    if (soportaVisibleWeb === false) { avisarErrorVisibilidad({ message: 'column "visible_web" does not exist' }); return; }
+    const actual = !ocultaEnWeb(carpeta.fila);
+    if (carpeta.fila?.id != null && !String(carpeta.fila.id).startsWith('local-')) {
+      return alternarVisibilidad('subcategorias', carpeta.fila.id, actual, v =>
+        setSubcategoriasDB(prev => prev.map(s => s.id === carpeta.fila.id ? { ...s, visible_web: v } : s))
+      );
+    }
+    const nuevo = !actual;
+    try {
+      const { data, error } = await supabase.from('subcategorias')
+        .insert([{ categoria: catId, nombre: carpeta.label, visible_web: nuevo }])
+        .select().single();
+      if (error) throw error;
+      setSubcategoriasDB(prev => [...prev, data]);
+      setSubsLocales(prev => prev.filter(x => !(String(x.categoria).toLowerCase() === catId && String(x.nombre).trim().toLowerCase() === carpeta.key)));
+    } catch (err: any) {
+      avisarErrorVisibilidad(err);
+    }
+  };
+
+  const alternarVisibilidadSubSub = async (catId: string, subKey: string, carpeta: any) => {
+    if (soportaVisibleWeb === false) { avisarErrorVisibilidad({ message: 'column "visible_web" does not exist' }); return; }
+    const actual = !ocultaEnWeb(carpeta.fila);
+    if (carpeta.fila?.id != null && !String(carpeta.fila.id).startsWith('local-')) {
+      return alternarVisibilidad('subsubcategorias', carpeta.fila.id, actual, v =>
+        setSubsubsDB(prev => prev.map(s => s.id === carpeta.fila.id ? { ...s, visible_web: v } : s))
+      );
+    }
+    const nuevo = !actual;
+    try {
+      const { data, error } = await supabase.from('subsubcategorias')
+        .insert([{ categoria: catId, subcategoria: subKey, nombre: carpeta.label, visible_web: nuevo }])
+        .select().single();
+      if (error) throw error;
+      setSubsubsDB(prev => [...prev, data]);
+      setSubsubLocales(prev => prev.filter(x => !(String(x.categoria).toLowerCase() === catId && String(x.subcategoria).toLowerCase() === subKey && String(x.nombre).trim().toLowerCase() === carpeta.key)));
+    } catch (err: any) {
+      avisarErrorVisibilidad(err);
+    }
+  };
+
+  const alternarVisibilidadProducto = (item: any) =>
+    alternarVisibilidad('stock', item.id, !ocultaEnWeb(item), v =>
+      setStock((prev: any[]) => (prev || []).map(p => p.id === item.id ? { ...p, visible_web: v } : p))
+    );
 
   useEffect(() => {
     cargarCategorias();
@@ -1491,11 +1648,28 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
     });
   };
 
+  // Antes de generar un catálogo, si hay productos ocultos en la web en ese
+  // alcance se pregunta si se incluyen. Devuelve la decisión final.
+  const preguntarOcultos = async (ocultos: number, incluirPorDefecto: boolean): Promise<boolean> => {
+    if (incluirPorDefecto) return true;
+    if (ocultos === 0) return false;
+    const incluir = await confirmar({
+      titulo: 'Productos ocultos en la web',
+      mensaje: `Hay ${ocultos} producto${ocultos === 1 ? '' : 's'} oculto${ocultos === 1 ? '' : 's'} en la web en esta selección. ¿Incluirlos en el catálogo?`,
+      textoOk: 'Sí, incluirlos',
+      textoCancelar: 'No, excluirlos'
+    });
+    return !!incluir;
+  };
+
   const generarPDFCatalogo = async (catId: string, sub: string | null = null, subsub: string | null = null) => {
     const cat = String(catId || '').toLowerCase();
     const titulo = tituloDeRuta(cat, sub, subsub);
-    const productosCat = productosDeRuta(cat, sub, subsub)
-      .filter((s: any) => !s.sin_stock)
+    const disponibles = productosDeRuta(cat, sub, subsub).filter((s: any) => !s.sin_stock);
+    const ocultos = disponibles.filter(ocultaEfectivaEnWeb).length;
+    const incluirOcultos = await preguntarOcultos(ocultos, false);
+    const productosCat = disponibles
+      .filter((s: any) => incluirOcultos || !ocultaEfectivaEnWeb(s))
       .sort((a: any, b: any) => String(a.nombre || '').localeCompare(String(b.nombre || ''), 'es', { numeric: true, sensitivity: 'base' }));
 
     if (productosCat.length === 0) {
@@ -1580,7 +1754,11 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
     Number(variedad?.precio_mayorista ?? producto?.precio_mayorista ?? 0) || 0;
 
   const construirCatalogoCompleto = (op: OpcionesCatalogoCompleto): BloqueCatalogo[] => {
-    const base = (stock || []).filter((p: any) => op.incluirSinStock || !p.sin_stock);
+    // Por defecto los productos ocultos en la web quedan fuera del catálogo;
+    // el checkbox del menú (o la pregunta al generar) permite incluirlos.
+    const base = (stock || []).filter((p: any) =>
+      (op.incluirSinStock || !p.sin_stock) && (op.incluirOcultos || !ocultaEfectivaEnWeb(p))
+    );
     const ordenar = (filas: FilaCatalogo[]) =>
       filas.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es', { numeric: true, sensitivity: 'base' }));
 
@@ -1666,7 +1844,10 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
     bloques.reduce((acc, b) => acc + b.grupos.reduce((a, g) => a + g.filas.length, 0), 0);
 
   const generarPDFCatalogoCompleto = async (op: OpcionesCatalogoCompleto) => {
-    const bloques = construirCatalogoCompleto(op);
+    // Alcance sin mirar ocultos: sirve para contar cuántos se preguntan.
+    const alcance = (stock || []).filter((p: any) => op.incluirSinStock || !p.sin_stock);
+    const opFinal = { ...op, incluirOcultos: await preguntarOcultos(alcance.filter(ocultaEfectivaEnWeb).length, op.incluirOcultos) };
+    const bloques = construirCatalogoCompleto(opFinal);
     const total = totalFilasCatalogo(bloques);
     if (total === 0) {
       setMensajeEstado('❌ No hay productos para generar el catálogo completo.');
@@ -1795,7 +1976,9 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
   };
 
   const generarExcelCatalogoCompleto = async (op: OpcionesCatalogoCompleto) => {
-    const bloques = construirCatalogoCompleto(op);
+    const alcance = (stock || []).filter((p: any) => op.incluirSinStock || !p.sin_stock);
+    const opFinal = { ...op, incluirOcultos: await preguntarOcultos(alcance.filter(ocultaEfectivaEnWeb).length, op.incluirOcultos) };
+    const bloques = construirCatalogoCompleto(opFinal);
     const total = totalFilasCatalogo(bloques);
     if (total === 0) {
       setMensajeEstado('❌ No hay productos para generar el Excel completo.');
@@ -2343,21 +2526,32 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
   }, [stock]);
 
   const subsDe = (catId: string) => {
-    const mapa = new Map<string, string>();
+    // Además del nombre se conserva la fila de la base (`fila`), que es la que
+    // tiene el ojito de visibilidad en la web. Las carpetas que solo salen de
+    // los productos quedan sin fila hasta que se crean.
+    const mapa = new Map<string, { label: string; fila?: any }>();
     [...subcategoriasDB, ...subsLocales]
       .filter(s => String(s.categoria).toLowerCase() === catId)
-      .forEach(s => mapa.set(String(s.nombre).trim().toLowerCase(), String(s.nombre).trim()));
-    Object.keys(conteos[catId]?.subs || {}).forEach(k => { if (!mapa.has(k)) mapa.set(k, capitalizar(k)); });
-    return Array.from(mapa.entries()).map(([key, label]) => ({ key, label, count: conteos[catId]?.subs[key] || 0 })).sort((a, b) => a.label.localeCompare(b.label));
+      .forEach(s => mapa.set(String(s.nombre).trim().toLowerCase(), { label: String(s.nombre).trim(), fila: s }));
+    Object.keys(conteos[catId]?.subs || {}).forEach(k => {
+      if (!mapa.has(k)) mapa.set(k, { label: capitalizar(k) });
+    });
+    return Array.from(mapa.entries())
+      .map(([key, v]) => ({ key, label: v.label, fila: v.fila, count: conteos[catId]?.subs[key] || 0 }))
+      .sort((a, b) => a.label.localeCompare(b.label));
   };
 
   const subsubsDe = (catId: string, subKey: string) => {
-    const mapa = new Map<string, string>();
+    const mapa = new Map<string, { label: string; fila?: any }>();
     [...subsubsDB, ...subsubLocales]
       .filter(s => String(s.categoria).toLowerCase() === catId && String(s.subcategoria).toLowerCase() === subKey)
-      .forEach(s => mapa.set(String(s.nombre).trim().toLowerCase(), String(s.nombre).trim()));
-    Object.keys(conteos[catId]?.hijos?.[subKey] || {}).forEach(k => { if (!mapa.has(k)) mapa.set(k, capitalizar(k)); });
-    return Array.from(mapa.entries()).map(([key, label]) => ({ key, label, count: conteos[catId]?.hijos?.[subKey]?.[key] || 0 })).sort((a, b) => a.label.localeCompare(b.label));
+      .forEach(s => mapa.set(String(s.nombre).trim().toLowerCase(), { label: String(s.nombre).trim(), fila: s }));
+    Object.keys(conteos[catId]?.hijos?.[subKey] || {}).forEach(k => {
+      if (!mapa.has(k)) mapa.set(k, { label: capitalizar(k) });
+    });
+    return Array.from(mapa.entries())
+      .map(([key, v]) => ({ key, label: v.label, fila: v.fila, count: conteos[catId]?.hijos?.[subKey]?.[key] || 0 }))
+      .sort((a, b) => a.label.localeCompare(b.label));
   };
 
   const seleccionar = (cat: string, sub: string | null, subsub: string | null = null) => { setSel({ cat, sub, subsub }); setBusqueda(''); setPaginaActual(1); if (isMobile) setPanelAbierto(false); };
@@ -2564,6 +2758,11 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
 
   // Se calcula acá (no antes) porque construirCatalogoCompleto usa categoriasOrdenadas.
   const previewCatalogoCompleto = construirCatalogoCompleto(opcionesCatalogo);
+  // Cuántos productos hay ocultos en la web dentro del alcance del catálogo.
+  const ocultosWebCatalogo = useMemo(
+    () => (stock || []).filter((p: any) => (opcionesCatalogo.incluirSinStock || !p.sin_stock) && ocultaEfectivaEnWeb(p)).length,
+    [stock, opcionesCatalogo.incluirSinStock, categorias, subcategoriasDB, subsubsDB]
+  );
   const stockSinStock = useMemo(() => (stock || []).filter((p: any) => p.sin_stock).length, [stock]);
 
   const ejecutarMoverSeleccionados = () => {
@@ -2728,6 +2927,7 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
           btnBaseStyle={btnMenuStyle}
           menuStyle={menuStyleMovil}
           totalProductos={totalFilasCatalogo(previewCatalogoCompleto)}
+          ocultosWeb={ocultosWebCatalogo}
           opciones={opcionesCatalogo}
           setOpciones={setOpcionesCatalogo}
           generandoPdf={generandoCatalogo === 'pdf'}
@@ -2749,14 +2949,16 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
       <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start', flexDirection: isMobile ? 'column' : 'row', width: '100%' }}>
         {(!isMobile || panelAbierto) && (
           <aside style={panelStyle}>
-            <PanelCarpetas darkMode={darkMode} categorias={categorias} sel={sel} seleccionar={seleccionar} conteos={conteos} totalStock={stock?.length || 0} subsDe={subsDe} subsubsDe={subsubsDe} onCrearSub={crearSubcategoria} onCrearSubSub={crearSubsubcategoria} onRenombrarSub={renombrarSubcategoria} onEliminarSub={eliminarSubcategoria} onRenombrarSubSub={renombrarSubsubcategoria} onEliminarSubSub={eliminarSubsubcategoria} onDropProductos={moverProductos} onDropCarpeta={moverCarpeta} onGestionar={() => setMostrarModalCategorias(true)} onRenombrarCategoria={renombrarCategoria} onEliminarCategoria={eliminarCategoriaConHijos} principalesIds={principalesIds} onEditarCategoria={abrirEdicionCategoria} onNuevaPrincipal={abrirNuevaPrincipal} />
+            <PanelCarpetas darkMode={darkMode} categorias={categorias} sel={sel} seleccionar={seleccionar} conteos={conteos} totalStock={stock?.length || 0} subsDe={subsDe} subsubsDe={subsubsDe} onCrearSub={crearSubcategoria} onCrearSubSub={crearSubsubcategoria} onRenombrarSub={renombrarSubcategoria} onEliminarSub={eliminarSubcategoria} onRenombrarSubSub={renombrarSubsubcategoria} onEliminarSubSub={eliminarSubsubcategoria} onDropProductos={moverProductos} onDropCarpeta={moverCarpeta} onGestionar={() => setMostrarModalCategorias(true)} onRenombrarCategoria={renombrarCategoria} onEliminarCategoria={eliminarCategoriaConHijos} principalesIds={principalesIds} onEditarCategoria={abrirEdicionCategoria} onNuevaPrincipal={abrirNuevaPrincipal} onAlternarCategoria={alternarVisibilidadCategoria} onAlternarSub={alternarVisibilidadSub} onAlternarSubSub={alternarVisibilidadSubSub} />
           </aside>
         )}
 
         <div style={{ ...cardStyle, flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', flexWrap: 'wrap', gap: '6px', marginBottom: '16px' }}>
             <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: theme.text }}>📂 {rutaActual}</h2>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            {/* flexWrap: sin esto, en celulares el <select> de orden (247px de
+                ancho por las opciones) desborda el documento 35px. */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', minWidth: 0 }}>
               <span style={{ fontSize: '0.85rem', color: theme.subtext }}>Mostrando {stockFiltrado.length} resultados</span>
               <div style={{ display: 'flex', borderRadius: '10px', overflow: 'hidden', border: `1px solid ${darkMode ? '#334155' : '#cbd5e1'}` }}>
                 <button onClick={() => setVista('grilla')} title="Vista tarjetas" style={{ padding: '8px 12px', border: 'none', cursor: 'pointer', backgroundColor: vista === 'grilla' ? '#3b82f6' : 'transparent', color: vista === 'grilla' ? 'white' : theme.subtext }}>▦</button>
@@ -2827,10 +3029,10 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
             </div>
           ) : vista === 'grilla' ? (
             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(auto-fill, minmax(220px, 1fr))', gap: isMobile ? '10px' : '18px' }}>
-              {itemsPaginaActual.map((item: any) => <ProductoCard key={item.id} item={item} darkMode={darkMode} seleccionado={seleccionados.includes(item.id)} onToggle={manejarSeleccionIndividual} onOpen={() => setProductoSeleccionado(item)} onDragStart={iniciarArrastre} onEdit={activarEdicion} onDelete={borrarItem} />)}
+              {itemsPaginaActual.map((item: any) => <ProductoCard key={item.id} item={item} darkMode={darkMode} seleccionado={seleccionados.includes(item.id)} onToggle={manejarSeleccionIndividual} onOpen={() => setProductoSeleccionado(item)} onDragStart={iniciarArrastre} onEdit={activarEdicion} onDelete={borrarItem} onToggleVisibilidad={alternarVisibilidadProducto} />)}
             </div>
           ) : (
-            <TablaStock isMobile={isMobile} itemsPaginaActual={itemsPaginaActual} seleccionados={seleccionados} manejarSeleccionIndividual={manejarSeleccionIndividual} setProductoSeleccionado={setProductoSeleccionado} obtenerLabelCategoria={obtenerLabelCategoria} activarEdicion={activarEdicion} borrarItem={borrarItem} actionBtnStyle={actionBtnStyle} darkMode={darkMode} theme={theme} />
+            <TablaStock isMobile={isMobile} itemsPaginaActual={itemsPaginaActual} seleccionados={seleccionados} manejarSeleccionIndividual={manejarSeleccionIndividual} setProductoSeleccionado={setProductoSeleccionado} obtenerLabelCategoria={obtenerLabelCategoria} activarEdicion={activarEdicion} borrarItem={borrarItem} actionBtnStyle={actionBtnStyle} darkMode={darkMode} theme={theme} onAlternarVisibilidad={alternarVisibilidadProducto} />
           )}
 
           {totalPaginas > 1 && (
