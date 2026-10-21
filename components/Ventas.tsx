@@ -16,6 +16,23 @@ interface VentasProps {
 export default function Ventas({ stock, setStock, ventas, setVentas, darkMode = true }: VentasProps) {
   const toast = useToast();
   const { confirmar } = toast;
+
+  // Beep corto para feedback al escanear (Web Audio, sin archivos externos).
+  const beep = () => {
+    try {
+      const Ctx = (window as any).AudioContext || (window as any).webkitAudioContext;
+      if (!Ctx) return;
+      const ctx = new Ctx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.frequency.value = 880; osc.type = 'sine';
+      gain.gain.setValueAtTime(0.15, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12);
+      osc.start(); osc.stop(ctx.currentTime + 0.12);
+    } catch {}
+  };
+
   const [busqueda, setBusqueda] = useState('');
   const [sugerencias, setSugerencias] = useState<any[]>([]);
   const [carrito, setCarrito] = useState<any[]>([]);
@@ -36,6 +53,15 @@ export default function Ventas({ stock, setStock, ventas, setVentas, darkMode = 
   // Control del porcentaje masivo para el carrito
   const [porcentajeAjuste, setPorcentajeAjuste] = useState<string>('');
 
+  // --- Venta rápida por monto (borrador, no afecta la caja hasta confirmarse) ---
+  const [ventaRapidaAbierta, setVentaRapidaAbierta] = useState(false);
+  const [montoRapido, setMontoRapido] = useState('');
+  const [descRapido, setDescRapido] = useState('');
+  const [metodoRapido, setMetodoRapido] = useState('Efectivo');
+  const [borradores, setBorradores] = useState<any[]>([]);
+  const [borradorActivo, setBorradorActivo] = useState<number | null>(null);
+  const [avisoAgregado, setAvisoAgregado] = useState<string | null>(null);
+
   // Paginación para historial minorista
   const [paginaHistorial, setPaginaHistorial] = useState(1);
   const itemsPorPaginaHistorial = 10;
@@ -49,6 +75,11 @@ export default function Ventas({ stock, setStock, ventas, setVentas, darkMode = 
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // Mantener el foco en el buscador para que la pistola pueda seguir escaneando.
+  useEffect(() => {
+    if (buscadorRef.current && !verHistorial) buscadorRef.current.focus();
+  }, [verHistorial, carrito.length]);
 
   const theme = {
     card: darkMode ? '#1e293b' : '#ffffff',
@@ -206,6 +237,7 @@ export default function Ventas({ stock, setStock, ventas, setVentas, darkMode = 
   // cobraron en el POS mayorista sin cliente (salen como Consumidor Final).
   const historialMinoristaFiltrado = useMemo(() => {
     return ventas.filter((v: any) => {
+      if (v.estado === 'borrador') return false;
       const sinCliente = v.cliente_id === null || v.cliente_id === undefined || v.cliente_id === '';
       return sinCliente && v.cliente_nombre !== 'Consumidor Final';
     });
@@ -218,37 +250,59 @@ export default function Ventas({ stock, setStock, ventas, setVentas, darkMode = 
   }, [historialMinoristaFiltrado, paginaHistorial]);
 
   useEffect(() => {
-    const buscarEnBaseDeDatos = async () => {
-      if (busqueda.trim().length > 0) {
-        const { data } = await supabase
-          .from('stock')
-          .select('id, nombre, codigo, precio_minorista, precio_costo, precio_promo, imagen_url, variedades')
-          .or(`nombre.ilike.%${busqueda}%,codigo.ilike.%${busqueda}%`)
-          .limit(10);
+    const term = busqueda.trim();
+    if (!term) { setSugerencias([]); setMostrarSugerencias(false); return; }
 
-        if (data) {
-          setSugerencias(data);
-          setMostrarSugerencias(true);
-          const coincidenciaExacta = data.find(
-            item => item.codigo && item.codigo.toLowerCase() === busqueda.trim().toLowerCase()
-          );
-          if (coincidenciaExacta) {
-            const tieneVariedades = obtenerVariedades(coincidenciaExacta).length > 0;
-            if (!tieneVariedades) ejecutarAgregadoDirecto(coincidenciaExacta, cantidadSeleccionada);
-          }
+    const buscarEnBaseDeDatos = async () => {
+
+      // 1) Coincidencia local por código exacto (producto o variedad): instantánea
+      //    para la pistola, sin esperar el roundtrip a Supabase.
+      const termLower = term.toLowerCase();
+      const local = stock.find((s: any) =>
+        (s.codigo && String(s.codigo).toLowerCase() === termLower) ||
+        (Array.isArray(s.variedades) && s.variedades.some((v: any) => v.codigo && String(v.codigo).toLowerCase() === termLower))
+      );
+      if (local) {
+        const variedad = Array.isArray(local.variedades)
+          ? local.variedades.find((v: any) => v.codigo && String(v.codigo).toLowerCase() === termLower) || null
+          : null;
+        ejecutarAgregadoDirecto(local, cantidadSeleccionada, variedad?.id);
+        return;
+      }
+
+      // 2) Búsqueda por nombre/código en Supabase (para tipeo manual).
+      const { data } = await supabase
+        .from('stock')
+        .select('id, nombre, codigo, precio_minorista, precio_costo, precio_promo, imagen_url, variedades')
+        .or(`nombre.ilike.%${term}%,codigo.ilike.%${term}%`)
+        .limit(10);
+
+      if (data) {
+        setSugerencias(data);
+        setMostrarSugerencias(true);
+        const coincidenciaExacta = data.find(
+          (item: any) => item.codigo && String(item.codigo).toLowerCase() === termLower
+        );
+        if (coincidenciaExacta) {
+          // Ahora se agrega igual aunque tenga variedades (se usa la primera).
+          ejecutarAgregadoDirecto(coincidenciaExacta, cantidadSeleccionada);
         }
-      } else {
-        setSugerencias([]);
-        setMostrarSugerencias(false);
       }
     };
-    const delayDebounce = setTimeout(() => { buscarEnBaseDeDatos(); }, 200);
+    const esCodigoExacto = stock.some((s: any) =>
+      (s.codigo && String(s.codigo).toLowerCase() === term.toLowerCase()) ||
+      (Array.isArray(s.variedades) && s.variedades.some((v: any) => v.codigo && String(v.codigo).toLowerCase() === term.toLowerCase()))
+    );
+    const delay = esCodigoExacto ? 0 : 200;
+    const delayDebounce = setTimeout(() => { buscarEnBaseDeDatos(); }, delay);
     return () => clearTimeout(delayDebounce);
-  }, [busqueda]);
+  }, [busqueda, stock, cantidadSeleccionada]);
 
   const ejecutarAgregadoDirecto = (producto: any, cantidad: number, variedadId?: string) => {
     const variedades = obtenerVariedades(producto);
-    const idElegido = variedadId || variedadElegidaPorProducto[producto.id] || '';
+    // Si no se eligió variedad (pistola o Enter) y el producto tiene variedades,
+    // se usa la primera para que el precio no quede en 0; se puede cambiar en el carrito.
+    const idElegido = variedadId || variedadElegidaPorProducto[producto.id] || (variedades.length > 0 ? variedades[0].id : '');
     const variedadObj = variedades.find((v: any) => String(v.id) === String(idElegido)) || null;
     // La variedad ya no es obligatoria: si no se elige, el renglón entra con el
     // nombre por defecto del producto y se puede acomodar (nombre o variedad)
@@ -278,6 +332,10 @@ export default function Ventas({ stock, setStock, ventas, setVentas, darkMode = 
     setSugerencias([]);
     setMostrarSugerencias(false);
     setCantidadSeleccionada(1);
+    beep();
+    setAvisoAgregado(producto.nombre);
+    setTimeout(() => setAvisoAgregado(null), 1200);
+    setTimeout(() => buscadorRef.current?.focus(), 0);
   };
 
   // Enter o el botón AÑADIR agregan la primera coincidencia (mismo camino que
@@ -357,6 +415,86 @@ export default function Ventas({ stock, setStock, ventas, setVentas, darkMode = 
     } catch (e: any) { toast.error("Error al registrar venta minorista: " + e.message); }
   };
 
+  // --- Borradores de venta rápida ---
+  const cargarBorradores = async () => {
+    const { data } = await supabase.from('ventas').select('*').eq('estado', 'borrador');
+    if (data) setBorradores(data.filter((v: any) => {
+      const fecha = v.created_at ? new Date(v.created_at) : (v.id ? new Date(Number(v.id)) : null);
+      if (!fecha || isNaN(fecha.getTime())) return false;
+      const hoy = new Date();
+      return fecha.getDate() === hoy.getDate() && fecha.getMonth() === hoy.getMonth() && fecha.getFullYear() === hoy.getFullYear();
+    }));
+  };
+
+  useEffect(() => { cargarBorradores(); }, []);
+
+  const guardarBorrador = async () => {
+    const monto = Number(montoRapido);
+    if (!Number.isFinite(monto) || monto <= 0) { toast.avisar('Ingresá un monto válido', 'alerta'); return; }
+    const items = carrito.length > 0 ? carritoConPreciosVivos : [{ nombre: descRapido.trim() || 'Venta rápida', unidades: 1, precio_venta: monto, precio_costo: 0 }];
+    const total = carrito.length > 0 ? totalConDescuento() : monto;
+    const nueva = {
+      id: Date.now(),
+      fecha: new Date().toLocaleString('es-AR'),
+      items,
+      subtotal: total,
+      descuento,
+      total,
+      metodo_pago: metodoRapido,
+      cliente_id: null,
+      cliente_nombre: 'BORRADOR VENTA RÁPIDA',
+      estado: 'borrador'
+    };
+    const { error } = await supabase.from('ventas').insert([nueva]);
+    if (error) { toast.error('No se pudo guardar el borrador: ' + error.message); return; }
+    setVentas([nueva, ...ventas]);
+    setBorradores([nueva, ...borradores]);
+    setCarrito([]); setDescuento(0); setMetodoPago('Efectivo'); setListaSeleccionada('precio_minorista');
+    setVentaRapidaAbierta(false); setMontoRapido(''); setDescRapido('');
+    toast.avisar('Borrador guardado. Lo completás cuando quieras.', 'exito');
+  };
+
+  const cargarBorrador = (b: any) => {
+    setCarrito((Array.isArray(b.items) ? b.items : []).map((it: any) => ({
+      id: it.id || 0, nombre: it.nombre || 'Venta rápida', variedad_id: it.variedad_id || null,
+      variedad_nombre: it.variedad_nombre || null, imagen: it.imagen || null,
+      precio_original_minorista: it.precio_venta || 0, unidades: it.unidades || 1,
+      precioModificado: true, titulo_manual: it.titulo_manual || null
+    })));
+    setMetodoPago(b.metodo_pago || 'Efectivo');
+    setDescuento(Number(b.descuento) || 0);
+    setBorradorActivo(b.id);
+    toast.avisar('Borrador cargado en el carrito. Completalo y confirmá.', 'exito');
+  };
+
+  const completarBorrador = async () => {
+    if (borradorActivo == null) return;
+    if (carrito.length === 0) { toast.avisar('El carrito está vacío', 'alerta'); return; }
+    try {
+      const finalTotal = totalConDescuento();
+      const { error } = await supabase.from('ventas').update({
+        items: carritoConPreciosVivos, subtotal: subtotalCarrito(), descuento,
+        total: finalTotal, metodo_pago: metodoPago, estado: 'completada'
+      }).eq('id', borradorActivo);
+      if (error) throw error;
+      const nueva = { id: borradorActivo, fecha: new Date().toLocaleString('es-AR'), items: carritoConPreciosVivos, subtotal: subtotalCarrito(), descuento, total: finalTotal, metodo_pago: metodoPago, cliente_id: null, cliente_nombre: 'Venta Minorista Mostrador', estado: 'completada' };
+      setVentas([nueva, ...ventas.filter((v: any) => v.id !== borradorActivo)]);
+      setBorradores(borradores.filter((b: any) => b.id !== borradorActivo));
+      setTicketFinal(nueva);
+      imprimirTicketVenta(nueva);
+      setCarrito([]); setDescuento(0); setMetodoPago('Efectivo'); setListaSeleccionada('precio_minorista'); setBorradorActivo(null);
+      toast.avisar('Venta confirmada', 'exito');
+    } catch (e: any) { toast.error('Error al confirmar: ' + e.message); }
+  };
+
+  const eliminarBorrador = async (id: number) => {
+    const ok = await confirmar({ titulo: '¿Eliminar este borrador?', mensaje: 'Se descarta el monto guardado.' });
+    if (!ok) return;
+    await supabase.from('ventas').delete().eq('id', id);
+    setBorradores(borradores.filter((b: any) => b.id !== id));
+    if (borradorActivo === id) { setBorradorActivo(null); setCarrito([]); }
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', width: '100%' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
@@ -366,6 +504,12 @@ export default function Ventas({ stock, setStock, ventas, setVentas, darkMode = 
           style={{ backgroundColor: verHistorial ? '#ef4444' : '#10b981', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '12px', cursor: 'pointer', fontWeight: 'bold', transition: '0.2s', width: isMobile ? '100%' : 'auto', minHeight: 42 }}
         >
           {verHistorial ? '✕ VOLVER AL PANEL VIVO' : '📜 VER HISTORIAL'}
+        </button>
+        <button
+          onClick={() => setVentaRapidaAbierta(true)}
+          style={{ backgroundColor: '#f59e0b', color: '#1f2937', border: 'none', padding: '10px 20px', borderRadius: '12px', cursor: 'pointer', fontWeight: 'bold', transition: '0.2s', width: isMobile ? '100%' : 'auto', minHeight: 42 }}
+        >
+          ⚡ VENTA RÁPIDA
         </button>
       </div>
 
@@ -519,13 +663,13 @@ export default function Ventas({ stock, setStock, ventas, setVentas, darkMode = 
                              onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
                            >
                              <div style={{
-                               width: '42px', height: '42px', borderRadius: '10px', overflow: 'hidden', flexShrink: 0,
+                               width: '72px', height: '72px', borderRadius: '12px', overflow: 'hidden', flexShrink: 0,
                                backgroundColor: theme.bg, display: 'flex', alignItems: 'center', justifyContent: 'center',
                                border: `1px solid ${theme.border}`
                              }}>
                                {s.imagen_url
-                                 ? <img src={s.imagen_url} alt={s.nombre} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                 : <span style={{ fontSize: '1.2rem' }}>📦</span>
+                                 ? <img src={s.imagen_url} alt={s.nombre} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                                 : <span style={{ fontSize: '1.8rem' }}>📦</span>
                                }
                              </div>
 
@@ -549,6 +693,17 @@ export default function Ventas({ stock, setStock, ventas, setVentas, darkMode = 
                                    {variedades.map((v: any) => <option key={v.id} value={v.id}>{v.nombre}</option>)}
                                  </select>
                                )}
+                                {promoDe(s, variedad) && (
+                                  <span style={{
+                                    display: 'inline-block', marginTop: '6px',
+                                    backgroundColor: '#f59e0b', color: '#1f2937',
+                                    fontSize: '0.85rem', fontWeight: 900, padding: '4px 10px',
+                                    borderRadius: '8px', letterSpacing: '0.3px',
+                                    boxShadow: '0 2px 6px rgba(245,158,11,0.35)'
+                                  }}>
+                                    🎁 {promoDe(s, variedad)}
+                                  </span>
+                                )}
                              </div>
 
                              <strong style={{ width: variedades.length > 0 ? '125px' : '110px', textAlign: 'right', color: '#10b981', fontFamily: 'monospace', fontSize: '0.95rem', whiteSpace: 'nowrap' }}>
@@ -566,6 +721,34 @@ export default function Ventas({ stock, setStock, ventas, setVentas, darkMode = 
                 </div>
               )}
             </div>
+
+            {/* BORRADORES DE VENTA RÁPIDA */}
+            {borradores.length > 0 && (
+              <div style={cardStyle}>
+                <h3 style={{ color: '#f59e0b', fontSize: '0.9rem', marginTop: 0 }}>⚡ BORRADORES PENDIENTES ({borradores.length})</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {borradores.map((b: any) => (
+                    <div key={b.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', borderRadius: '10px', border: `1px solid ${theme.border}`, backgroundColor: theme.innerBox, gap: '10px', flexWrap: 'wrap' }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ color: theme.text, fontWeight: 700, fontSize: '0.9rem' }}>${Number(b.total || 0).toLocaleString('es-AR')}</div>
+                        <div style={{ color: theme.subtext, fontSize: '0.75rem' }}>{b.fecha} • {Array.isArray(b.items) ? b.items.length : 0} línea(s)</div>
+                      </div>
+                      <div style={{ display: 'flex', gap: '6px' }}>
+                        <button onClick={() => cargarBorrador(b)} style={{ backgroundColor: '#10b981', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '8px', cursor: 'pointer', fontWeight: 700, fontSize: '0.75rem' }}>CARGAR</button>
+                        <button onClick={() => eliminarBorrador(b.id)} style={{ backgroundColor: 'transparent', color: '#ef4444', border: `1px solid #ef4444`, padding: '6px 12px', borderRadius: '8px', cursor: 'pointer', fontWeight: 700, fontSize: '0.75rem' }}>✕</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {borradorActivo != null && (
+                  <div style={{ marginTop: '12px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    <button onClick={completarBorrador} style={{ flex: 1, backgroundColor: '#10b981', color: '#fff', border: 'none', padding: '12px', borderRadius: '10px', cursor: 'pointer', fontWeight: 900, fontSize: '0.9rem', minHeight: 42 }}>
+                      ✅ CONFIRMAR VENTA (borrador)
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* CARRITO */}
             <div style={cardStyle}>
@@ -810,7 +993,7 @@ export default function Ventas({ stock, setStock, ventas, setVentas, darkMode = 
                 </div>
 
                 <button
-                  onClick={finalizarVenta}
+                  onClick={borradorActivo != null ? completarBorrador : finalizarVenta}
                   disabled={carrito.length === 0}
                   style={{
                     width: '100%', marginTop: '15px', backgroundColor: '#10b981', color: '#fff',
@@ -844,6 +1027,35 @@ export default function Ventas({ stock, setStock, ventas, setVentas, darkMode = 
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Modal de venta rápida por monto */}
+      {ventaRapidaAbierta && (
+        <div onClick={() => setVentaRapidaAbierta(false)} style={{ position: 'fixed', inset: 0, zIndex: 2000, backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', backdropFilter: 'blur(4px)' }}>
+          <div onClick={e => e.stopPropagation()} style={{ backgroundColor: theme.card, borderRadius: '20px', width: '100%', maxWidth: '420px', border: `1px solid ${theme.border}`, padding: '24px', boxShadow: '0 25px 50px rgba(0,0,0,0.5)' }}>
+            <h3 style={{ margin: '0 0 16px', color: '#f59e0b', fontSize: '1.1rem', fontWeight: 900 }}>⚡ VENTA RÁPIDA POR MONTO</h3>
+            <p style={{ color: theme.subtext, fontSize: '0.85rem', margin: '0 0 16px' }}>Se guarda como borrador: no afecta la caja hasta que la completes con los productos.</p>
+            <label style={{ fontSize: '0.75rem', color: theme.subtext, fontWeight: 700, display: 'block', marginBottom: '6px' }}>MONTO ($)</label>
+            <input type="number" inputMode="numeric" value={montoRapido} onChange={e => setMontoRapido(e.target.value)} placeholder="0" style={{ ...inputStyle, marginBottom: '12px', fontSize: '1.3rem', fontWeight: 900, color: '#10b981' }} autoFocus />
+            <label style={{ fontSize: '0.75rem', color: theme.subtext, fontWeight: 700, display: 'block', marginBottom: '6px' }}>DESCRIPCIÓN (opcional)</label>
+            <input type="text" value={descRapido} onChange={e => setDescRapido(e.target.value)} placeholder="Ej: Varios / mostrador" style={{ ...inputStyle, marginBottom: '12px' }} />
+            <label style={{ fontSize: '0.75rem', color: theme.subtext, fontWeight: 700, display: 'block', marginBottom: '6px' }}>MÉTODO DE PAGO</label>
+            <select value={metodoRapido} onChange={e => setMetodoRapido(e.target.value)} style={{ ...inputStyle, marginBottom: '16px' }}>
+              <option>Efectivo</option><option>Transferencia</option><option>Tarjeta</option><option>Cuenta Corriente</option>
+            </select>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button onClick={() => setVentaRapidaAbierta(false)} style={{ flex: 1, backgroundColor: 'transparent', color: theme.text, border: `1px solid ${theme.border}`, padding: '12px', borderRadius: '10px', cursor: 'pointer', fontWeight: 700 }}>Cancelar</button>
+              <button onClick={guardarBorrador} style={{ flex: 1, backgroundColor: '#f59e0b', color: '#1f2937', border: 'none', padding: '12px', borderRadius: '10px', cursor: 'pointer', fontWeight: 900 }}>Guardar borrador</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Aviso flotante al escanear */}
+      {avisoAgregado && (
+        <div style={{ position: 'fixed', top: '20px', left: '50%', transform: 'translateX(-50%)', zIndex: 2500, backgroundColor: '#10b981', color: '#fff', padding: '12px 20px', borderRadius: '12px', fontWeight: 800, fontSize: '0.95rem', boxShadow: '0 8px 24px rgba(16,185,129,0.4)', pointerEvents: 'none' }}>
+          ✓ Agregado: {avisoAgregado}
         </div>
       )}
 
