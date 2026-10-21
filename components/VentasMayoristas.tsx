@@ -43,6 +43,8 @@ export default function VentasMayoristas({ stock, setStock, ventas, setVentas, d
   const [verHistorial, setVerHistorial] = useState(false);
   
   const [metodoPago, setMetodoPago] = useState('Transferencia');
+  const [descuentoEfectivo, setDescuentoEfectivo] = useState(0);
+  const [montoEntregado, setMontoEntregado] = useState('');
   const [listaClientes, setListaClientes] = useState<any[]>([]);
   const [clienteSeleccionado, setClienteSeleccionado] = useState('');
   const [creandoCliente, setCreandoCliente] = useState(false);
@@ -59,6 +61,28 @@ export default function VentasMayoristas({ stock, setStock, ventas, setVentas, d
   const [descRapido, setDescRapido] = useState('');
   const [borradores, setBorradores] = useState<any[]>([]);
   const [borradorActivo, setBorradorActivo] = useState<number | null>(null);
+
+  // --- Persistencia del carrito en localStorage ---
+  const CARRITO_KEY_MAYOR = 'ventas_mayorista_carrito';
+  useEffect(() => {
+    try {
+      const guardado = localStorage.getItem(CARRITO_KEY_MAYOR);
+      if (guardado) {
+        const parsed = JSON.parse(guardado);
+        if (Array.isArray(parsed) && parsed.length > 0) setCarrito(parsed);
+      }
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    if (carrito.length > 0) localStorage.setItem(CARRITO_KEY_MAYOR, JSON.stringify(carrito));
+    else localStorage.removeItem(CARRITO_KEY_MAYOR);
+  }, [carrito]);
+
+  const limpiarCarritoPersistente = () => {
+    setCarrito([]);
+    localStorage.removeItem(CARRITO_KEY_MAYOR);
+  };
 
   // Paginación interna para el historial mayorista
   const [paginaHistorial, setPaginaHistorial] = useState(1);
@@ -214,7 +238,7 @@ export default function VentasMayoristas({ stock, setStock, ventas, setVentas, d
     return 0;
   }, [carritoMayoristaConPrecios, infoClienteActivo]);
 
-  const totalFinal = () => Math.max(0, subtotalCarrito() - descuentoGremioCalculado);
+  const totalFinal = () => Math.max(0, subtotalCarrito() - descuentoGremioCalculado - descuentoEfectivo);
 
   const aplicarAjustePorcentualMasivo = (tipo: 'recargo' | 'descuento') => {
     const porcentaje = Number(porcentajeAjuste);
@@ -393,20 +417,64 @@ export default function VentasMayoristas({ stock, setStock, ventas, setVentas, d
       ? Number(datos.saldo_cc)
       : Number(cuenta?.saldo_cc || 0);
 
-    windowUrl.document.write(armarHTMLTicket({
-      fecha: datos.fecha,
-      metodoPago: datos.metodo_pago,
-      cliente,
-      items: (Array.isArray(datos.items) ? datos.items : []).map((i: any) => ({
-        unidades: i.unidades,
-        nombre: tituloDe(i),
-        importe: i.unidades * (i.precio_venta || i.precio_original_mayorista || 0)
-      })),
-      total: datos.total,
-      pie: datos.metodo_pago === 'Cuenta Corriente'
-        ? `CUENTA CORRIENTE · SALDO: $${saldo.toLocaleString('es-AR')}`
-        : null
+    const items = (Array.isArray(datos.items) ? datos.items : []).map((i: any) => ({
+      unidades: i.unidades,
+      nombre: tituloDe(i),
+      importe: i.unidades * (i.precio_venta || i.precio_original_mayorista || 0)
     }));
+    const subtotal = items.reduce((acc: number, i: any) => acc + i.importe, 0);
+    const descuentoTotal = (datos.descuento || 0) + (datos.descuento_efectivo || 0);
+    const total = datos.total;
+    const vuelto = datos.vuelto || (datos.monto_entregado && datos.monto_entregado > total ? datos.monto_entregado - total : 0);
+    const metodoPago = datos.metodo_pago;
+
+    let html = `
+      <html>
+        <head>
+          <meta charset="utf-8" />
+          <style>
+            @page { margin: 6mm; }
+            body { font-family: 'Courier New', monospace; padding: 8px; font-size: 13px; font-weight: bold; color: #000; }
+            .text-center { text-align: center; }
+            h3 { margin: 0 0 5px; font-size: 16px; letter-spacing: 1px; }
+            .meta { margin-top: 3px; }
+            .divider { border-top: 2px dashed #000; margin: 10px 0; }
+            table { width: 100%; border-collapse: collapse; }
+            td { padding: 2px 0; vertical-align: top; word-break: break-word; }
+            td.cant { white-space: nowrap; padding-right: 6px; }
+            td.nom { }
+            td.imp { text-align: right; white-space: nowrap; padding-left: 8px; }
+            .total { font-size: 15px; font-weight: 900; margin-top: 4px; text-align: right; }
+            .pie { margin-top: 10px; text-align: center; }
+            .vuelto { color: #7c3aed; font-size: 14px; font-weight: 900; margin-top: 8px; }
+          </style>
+        </head>
+        <body>
+          <div class="text-center">
+            <h3>DISTRIBUIDORA INDIA</h3>
+            <div class="meta">${datos.fecha}</div>
+            <div class="meta">PAGO: ${metodoPago.toUpperCase()}</div>
+            <div class="meta">CLIENTE: ${cliente.toUpperCase()}</div>
+          </div>
+          <div class="divider"></div>
+          <table>${items.map((i: any) => `<tr><td class="cant">${i.unidades} x</td><td class="nom">${i.nombre}</td><td class="imp">$${i.importe.toLocaleString('es-AR')}</td></tr>`).join('')}</table>
+          <div class="divider"></div>
+          <div style="display:flex;justify-content:space-between"><span>Subtotal</span><span>$${subtotal.toLocaleString('es-AR')}</span></div>
+          ${(datos.descuento || 0) > 0 ? `<div style="display:flex;justify-content:space-between;color:#8b5cf6"><span>Desc. Gremio</span><span>−$${Number(datos.descuento).toLocaleString('es-AR')}</span></div>` : ''}
+          ${(datos.descuento_efectivo || 0) > 0 ? `<div style="display:flex;justify-content:space-between;color:#f59e0b"><span>Desc. Efectivo</span><span>−$${Number(datos.descuento_efectivo).toLocaleString('es-AR')}</span></div>` : ''}
+          <div class="divider"></div>
+          <div class="total">TOTAL: $${Number(total).toLocaleString('es-AR')}</div>
+          ${metodoPago === 'Cuenta Corriente' ? `<div class="pie">CUENTA CORRIENTE · SALDO: $${saldo.toLocaleString('es-AR')}</div>` : ''}
+          ${metodoPago === 'Efectivo' && vuelto > 0 ? `
+            <div class="divider"></div>
+            <div style="display:flex;justify-content:space-between"><span>Entregado</span><span>$${Number(datos.monto_entregado).toLocaleString('es-AR')}</span></div>
+            <div class="vuelto">VUELTO: $${vuelto.toLocaleString('es-AR')}</div>
+          ` : ''}
+        </body>
+        <script>window.onload = function() { window.print(); window.close(); };<\/script>
+      </html>
+    `;
+    windowUrl.document.write(html);
     windowUrl.document.close();
   };
 
@@ -439,7 +507,9 @@ export default function VentasMayoristas({ stock, setStock, ventas, setVentas, d
         fecha: new Date().toLocaleString('es-AR'), 
         items: carritoMayoristaConPrecios, 
         subtotal: subtotalCarrito(), 
-        descuento: descuentoGremioCalculado, 
+        descuento: descuentoGremioCalculado,
+        descuento_efectivo: descuentoEfectivo,
+        monto_entregado: metodoPago === 'Efectivo' ? Number(montoEntregado) || null : null,
         total: finalTotal, 
         metodo_pago: metodoPago, 
         cliente_id: clienteSeleccionado ? Number(clienteSeleccionado) : null, 
@@ -452,10 +522,13 @@ export default function VentasMayoristas({ stock, setStock, ventas, setVentas, d
 
       setVentas([nuevaVenta, ...ventas]);
       setTicketFinal(nuevaVenta);
+      const vuelto = metodoPago === 'Efectivo' && Number(montoEntregado) > finalTotal ? Number(montoEntregado) - finalTotal : 0;
       // El saldo va solo al papel (nuevaVenta ya está insertada sin columnas de más).
-      imprimirTicketVenta({ ...nuevaVenta, saldo_cc: saldoEmitido });
-      setCarrito([]);
+      imprimirTicketVenta({ ...nuevaVenta, saldo_cc: saldoEmitido, vuelto });
+      limpiarCarritoPersistente();
       setClienteSeleccionado('');
+      setDescuentoEfectivo(0);
+      setMontoEntregado('');
       setMetodoPago('Transferencia');
       if (buscadorRef.current) buscadorRef.current.focus();
     } catch (error: any) {
@@ -488,6 +561,8 @@ export default function VentasMayoristas({ stock, setStock, ventas, setVentas, d
       items,
       subtotal: total,
       descuento: descuentoGremioCalculado,
+      descuento_efectivo: descuentoEfectivo,
+      monto_entregado: metodoPago === 'Efectivo' ? Number(montoEntregado) || null : null,
       total,
       metodo_pago: 'Transferencia',
       cliente_id: clienteSeleccionado ? Number(clienteSeleccionado) : null,
@@ -498,7 +573,7 @@ export default function VentasMayoristas({ stock, setStock, ventas, setVentas, d
     if (error) { toast.error('No se pudo guardar el borrador: ' + error.message); return; }
     setVentas([nueva, ...ventas]);
     setBorradores([nueva, ...borradores]);
-    setCarrito([]); setClienteSeleccionado(''); setMetodoPago('Transferencia');
+    setCarrito([]); setClienteSeleccionado(''); setMetodoPago('Transferencia'); setDescuentoEfectivo(0); setMontoEntregado('');
     setVentaRapidaAbierta(false); setMontoRapido(''); setDescRapido('');
     toast.avisar('Borrador guardado. Lo completás cuando quieras.', 'exito');
   };
@@ -523,16 +598,20 @@ export default function VentasMayoristas({ stock, setStock, ventas, setVentas, d
       const clienteNombreStr = infoClienteActivo ? infoClienteActivo.nombre : 'Consumidor Final';
       const { error } = await supabase.from('ventas').update({
         items: carritoMayoristaConPrecios, subtotal: subtotalCarrito(), descuento: descuentoGremioCalculado,
+        descuento_efectivo: descuentoEfectivo,
+        monto_entregado: metodoPago === 'Efectivo' ? Number(montoEntregado) || null : null,
         total: finalTotal, metodo_pago: metodoPago, cliente_id: clienteSeleccionado ? Number(clienteSeleccionado) : null,
         cliente_nombre: clienteNombreStr, estado: 'completada'
       }).eq('id', borradorActivo);
       if (error) throw error;
-      const nueva = { id: borradorActivo, fecha: new Date().toLocaleString('es-AR'), items: carritoMayoristaConPrecios, subtotal: subtotalCarrito(), descuento: descuentoGremioCalculado, total: finalTotal, metodo_pago: metodoPago, cliente_id: clienteSeleccionado ? Number(clienteSeleccionado) : null, cliente_nombre: clienteNombreStr, estado: 'completada' };
+      const nueva = { id: borradorActivo, fecha: new Date().toLocaleString('es-AR'), items: carritoMayoristaConPrecios, subtotal: subtotalCarrito(), descuento: descuentoGremioCalculado, descuento_efectivo: descuentoEfectivo, monto_entregado: metodoPago === 'Efectivo' ? Number(montoEntregado) || null : null, total: finalTotal, metodo_pago: metodoPago, cliente_id: clienteSeleccionado ? Number(clienteSeleccionado) : null, cliente_nombre: clienteNombreStr, estado: 'completada' };
       setVentas([nueva, ...ventas.filter((v: any) => v.id !== borradorActivo)]);
       setBorradores(borradores.filter((b: any) => b.id !== borradorActivo));
       setTicketFinal(nueva);
-      imprimirTicketVenta({ ...nueva, saldo_cc: undefined });
-      setCarrito([]); setClienteSeleccionado(''); setMetodoPago('Transferencia'); setBorradorActivo(null);
+      const vuelto = metodoPago === 'Efectivo' && Number(montoEntregado) > finalTotal ? Number(montoEntregado) - finalTotal : 0;
+      imprimirTicketVenta({ ...nueva, saldo_cc: undefined, vuelto });
+      limpiarCarritoPersistente();
+      setClienteSeleccionado(''); setDescuentoEfectivo(0); setMontoEntregado(''); setMetodoPago('Transferencia'); setBorradorActivo(null);
       toast.avisar('Venta confirmada', 'exito');
     } catch (e: any) { toast.error('Error al confirmar: ' + e.message); }
   };
@@ -933,6 +1012,40 @@ export default function VentasMayoristas({ stock, setStock, ventas, setVentas, d
                 </select>
               </div>
 
+              <div style={{ marginTop: '14px' }}>
+                <label style={{ fontSize: '0.75rem', color: theme.subtext, fontWeight: 700, display: 'block', marginBottom: '6px' }}>DESCUENTO EN EFECTIVO ($)</label>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  placeholder="0"
+                  value={descuentoEfectivo}
+                  onChange={e => setDescuentoEfectivo(Number(e.target.value))}
+                  style={inputStyle}
+                />
+              </div>
+
+              {metodoPago === 'Efectivo' && (
+                <div style={{ marginTop: '14px' }}>
+                  <label style={{ fontSize: '0.75rem', color: theme.subtext, fontWeight: 700, display: 'block', marginBottom: '6px' }}>CON CUÁNTO PAGAN ($)</label>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    placeholder="0"
+                    value={montoEntregado}
+                    onChange={e => setMontoEntregado(e.target.value)}
+                    style={{ ...inputStyle, fontSize: '1.1rem', fontWeight: 900, color: '#8b5cf6' }}
+                  />
+                  {Number(montoEntregado) > 0 && (
+                    <div style={{ marginTop: '8px', padding: '10px', backgroundColor: '#f3e8ff', border: '1px solid #d8b4fe', borderRadius: '10px', textAlign: 'right' }}>
+                      <div style={{ fontSize: '0.7rem', color: '#6b21a8', fontWeight: 700, letterSpacing: '0.5px' }}>VUELTO A ENTREGAR</div>
+                      <div style={{ fontSize: '1.4rem', fontWeight: 900, color: '#7c3aed', fontFamily: 'monospace' }}>
+                        ${Math.max(0, Number(montoEntregado) - totalFinal()).toLocaleString('es-AR')}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div style={{ marginTop: '16px', borderTop: `1px dashed ${theme.border}`, paddingTop: '15px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', gap: '8px' }}>
                   <label style={{ fontSize: '0.72rem', color: theme.subtext, fontWeight: 700 }}>
@@ -1000,6 +1113,18 @@ export default function VentasMayoristas({ stock, setStock, ventas, setVentas, d
                   <span>Subtotal</span>
                   <span style={{ fontFamily: 'monospace' }}>${subtotalCarrito().toLocaleString()}</span>
                 </div>
+                {descuentoGremioCalculado > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: '#8b5cf6', marginBottom: '6px' }}>
+                    <span>Desc. Gremio</span>
+                    <span style={{ fontFamily: 'monospace' }}>−${descuentoGremioCalculado.toLocaleString()}</span>
+                  </div>
+                )}
+                {descuentoEfectivo > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: '#f59e0b', marginBottom: '6px' }}>
+                    <span>Desc. Efectivo</span>
+                    <span style={{ fontFamily: 'monospace' }}>−${descuentoEfectivo.toLocaleString()}</span>
+                  </div>
+                )}
                 <div style={{
                   backgroundColor: theme.bg, padding: '14px', borderRadius: '14px',
                   border: `1px solid ${theme.border}`, textAlign: 'right', marginTop: '10px'
@@ -1009,6 +1134,14 @@ export default function VentasMayoristas({ stock, setStock, ventas, setVentas, d
                     ${totalFinal().toLocaleString()}
                   </div>
                 </div>
+                {metodoPago === 'Efectivo' && Number(montoEntregado) > 0 && Number(montoEntregado) > totalFinal() && (
+                  <div style={{ marginTop: '12px', padding: '12px', backgroundColor: '#f3e8ff', border: '1px solid #d8b4fe', borderRadius: '10px', textAlign: 'right' }}>
+                    <div style={{ fontSize: '0.7rem', color: '#6b21a8', fontWeight: 700, letterSpacing: '0.5px' }}>VUELTO A ENTREGAR</div>
+                    <div style={{ fontSize: '1.5rem', fontWeight: 900, color: '#7c3aed', fontFamily: 'monospace' }}>
+                      ${Math.max(0, Number(montoEntregado) - totalFinal()).toLocaleString('es-AR')}
+                    </div>
+                  </div>
+                )}
 
                 <button
                   onClick={borradorActivo != null ? completarBorrador : finalizarVenta}

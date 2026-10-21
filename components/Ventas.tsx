@@ -43,7 +43,9 @@ export default function Ventas({ stock, setStock, ventas, setVentas, darkMode = 
   const [verHistorial, setVerHistorial] = useState(false);
   
   const [descuento, setDescuento] = useState(0);
+  const [descuentoEfectivo, setDescuentoEfectivo] = useState(0);
   const [metodoPago, setMetodoPago] = useState('Efectivo');
+  const [montoEntregado, setMontoEntregado] = useState('');
 
   const [listaSeleccionada, setListaSeleccionada] = useState<'precio_minorista' | 'precio_promo'>('precio_minorista');
 
@@ -61,6 +63,29 @@ export default function Ventas({ stock, setStock, ventas, setVentas, darkMode = 
   const [borradores, setBorradores] = useState<any[]>([]);
   const [borradorActivo, setBorradorActivo] = useState<number | null>(null);
   const [avisoAgregado, setAvisoAgregado] = useState<string | null>(null);
+
+  // --- Persistencia del carrito en localStorage ---
+  const CARRITO_KEY = 'ventas_minorista_carrito';
+  useEffect(() => {
+    try {
+      const guardado = localStorage.getItem(CARRITO_KEY);
+      if (guardado) {
+        const parsed = JSON.parse(guardado);
+        if (Array.isArray(parsed) && parsed.length > 0) setCarrito(parsed);
+      }
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    if (carrito.length > 0) localStorage.setItem(CARRITO_KEY, JSON.stringify(carrito));
+    else localStorage.removeItem(CARRITO_KEY);
+  }, [carrito]);
+
+  // Limpiar carrito al completar venta (ya lo hace setCarrito([]) en finalizarVenta)
+  const limpiarCarritoPersistente = () => {
+    setCarrito([]);
+    localStorage.removeItem(CARRITO_KEY);
+  };
 
   // Paginación para historial minorista
   const [paginaHistorial, setPaginaHistorial] = useState(1);
@@ -211,7 +236,7 @@ export default function Ventas({ stock, setStock, ventas, setVentas, darkMode = 
   }, [carrito, listaSeleccionada, stock]);
 
   const subtotalCarrito = () => carritoConPreciosVivos.reduce((acc, item) => acc + (item.precio_venta * item.unidades), 0);
-  const totalConDescuento = () => Math.max(0, subtotalCarrito() - descuento);
+  const totalConDescuento = () => Math.max(0, subtotalCarrito() - descuento - descuentoEfectivo);
 
   const aplicarAjustePorcentualMasivo = (tipo: 'recargo' | 'descuento') => {
     const porcentaje = Number(porcentajeAjuste);
@@ -369,18 +394,62 @@ export default function Ventas({ stock, setStock, ventas, setVentas, darkMode = 
   const imprimirTicketVenta = (datos: any) => {
     const windowUrl = typeof window !== 'undefined' ? window.open('', '_blank') : null;
     if (!windowUrl) return;
-    windowUrl.document.write(armarHTMLTicket({
-      fecha: datos.fecha,
-      metodoPago: datos.metodo_pago,
-      cliente: null,
-      items: (Array.isArray(datos.items) ? datos.items : []).map((i: any) => ({
-        unidades: i.unidades,
-        nombre: tituloDe(i),
-        importe: i.unidades * (i.precio_venta || i.precio_original_minorista || 0)
-      })),
-      total: datos.total,
-      pie: null
+    const items = (Array.isArray(datos.items) ? datos.items : []).map((i: any) => ({
+      unidades: i.unidades,
+      nombre: tituloDe(i),
+      importe: i.unidades * (i.precio_venta || i.precio_original_minorista || 0)
     }));
+    const subtotal = items.reduce((acc: number, i: any) => acc + i.importe, 0);
+    const descuentoTotal = (datos.descuento || 0) + (datos.descuento_efectivo || 0);
+    const total = datos.total;
+    const vuelto = datos.vuelto || (datos.monto_entregado && datos.monto_entregado > total ? datos.monto_entregado - total : 0);
+    const metodoPago = datos.metodo_pago;
+    
+    let html = `
+      <html>
+        <head>
+          <meta charset="utf-8" />
+          <style>
+            @page { margin: 6mm; }
+            body { font-family: 'Courier New', monospace; padding: 8px; font-size: 13px; font-weight: bold; color: #000; }
+            .text-center { text-align: center; }
+            h3 { margin: 0 0 5px; font-size: 16px; letter-spacing: 1px; }
+            .meta { margin-top: 3px; }
+            .divider { border-top: 2px dashed #000; margin: 10px 0; }
+            table { width: 100%; border-collapse: collapse; }
+            td { padding: 2px 0; vertical-align: top; word-break: break-word; }
+            td.cant { white-space: nowrap; padding-right: 6px; }
+            td.nom { }
+            td.imp { text-align: right; white-space: nowrap; padding-left: 8px; }
+            .total { font-size: 15px; font-weight: 900; margin-top: 4px; text-align: right; }
+            .pie { margin-top: 10px; text-align: center; }
+            .vuelto { color: #047857; font-size: 14px; font-weight: 900; margin-top: 8px; }
+          </style>
+        </head>
+        <body>
+          <div class="text-center">
+            <h3>DISTRIBUIDORA INDIA</h3>
+            <div class="meta">${datos.fecha}</div>
+            <div class="meta">PAGO: ${metodoPago.toUpperCase()}</div>
+          </div>
+          <div class="divider"></div>
+          <table>${items.map((i: any) => `<tr><td class="cant">${i.unidades} x</td><td class="nom">${i.nombre}</td><td class="imp">$${i.importe.toLocaleString('es-AR')}</td></tr>`).join('')}</table>
+          <div class="divider"></div>
+          <div style="display:flex;justify-content:space-between"><span>Subtotal</span><span>$${subtotal.toLocaleString('es-AR')}</span></div>
+          ${datos.descuento > 0 ? `<div style="display:flex;justify-content:space-between;color:#10b981"><span>Descuento</span><span>−$${Number(datos.descuento).toLocaleString('es-AR')}</span></div>` : ''}
+          ${datos.descuento_efectivo > 0 ? `<div style="display:flex;justify-content:space-between;color:#f59e0b"><span>Desc. Efectivo</span><span>−$${Number(datos.descuento_efectivo).toLocaleString('es-AR')}</span></div>` : ''}
+          <div class="divider"></div>
+          <div class="total">TOTAL: $${Number(total).toLocaleString('es-AR')}</div>
+          ${metodoPago === 'Efectivo' && vuelto > 0 ? `
+            <div class="divider"></div>
+            <div style="display:flex;justify-content:space-between"><span>Entregado</span><span>$${Number(datos.monto_entregado).toLocaleString('es-AR')}</span></div>
+            <div class="vuelto">VUELTO: $${vuelto.toLocaleString('es-AR')}</div>
+          ` : ''}
+        </body>
+        <script>window.onload = function() { window.print(); window.close(); };<\/script>
+      </html>
+    `;
+    windowUrl.document.write(html);
     windowUrl.document.close();
   };
 
@@ -394,6 +463,8 @@ export default function Ventas({ stock, setStock, ventas, setVentas, darkMode = 
         items: carritoConPreciosVivos,
         subtotal: subtotalCarrito(),
         descuento,
+        descuento_efectivo: descuentoEfectivo,
+        monto_entregado: metodoPago === 'Efectivo' ? Number(montoEntregado) || null : null,
         total: finalTotal,
         metodo_pago: metodoPago,
         cliente_id: null,
@@ -407,9 +478,11 @@ export default function Ventas({ stock, setStock, ventas, setVentas, darkMode = 
 
       setVentas([nuevaVenta, ...ventas]);
       setTicketFinal(nuevaVenta);
-      imprimirTicketVenta(nuevaVenta);
-      setCarrito([]);
+      imprimirTicketVenta({ ...nuevaVenta, vuelto: metodoPago === 'Efectivo' && Number(montoEntregado) > finalTotal ? Number(montoEntregado) - finalTotal : 0 });
+      limpiarCarritoPersistente();
       setDescuento(0);
+      setDescuentoEfectivo(0);
+      setMontoEntregado('');
       setMetodoPago('Efectivo');
       setListaSeleccionada('precio_minorista');
     } catch (e: any) { toast.error("Error al registrar venta minorista: " + e.message); }
@@ -962,6 +1035,18 @@ export default function Ventas({ stock, setStock, ventas, setVentas, darkMode = 
               </div>
 
               <div style={{ marginTop: '14px' }}>
+                <label style={{ fontSize: '0.75rem', color: theme.subtext, fontWeight: 700, display: 'block', marginBottom: '6px' }}>DESCUENTO EN EFECTIVO ($)</label>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  placeholder="0"
+                  value={descuentoEfectivo}
+                  onChange={e => setDescuentoEfectivo(Number(e.target.value))}
+                  style={inputStyle}
+                />
+              </div>
+
+              <div style={{ marginTop: '14px' }}>
                 <label style={{ fontSize: '0.75rem', color: theme.subtext, fontWeight: 700, display: 'block', marginBottom: '6px' }}>MÉTODO DE PAGO</label>
                 <select value={metodoPago} onChange={e => setMetodoPago(e.target.value)} style={inputStyle}>
                   <option>Efectivo</option>
@@ -970,6 +1055,28 @@ export default function Ventas({ stock, setStock, ventas, setVentas, darkMode = 
                   <option>Cuenta Corriente</option>
                 </select>
               </div>
+
+              {metodoPago === 'Efectivo' && (
+                <div style={{ marginTop: '14px' }}>
+                  <label style={{ fontSize: '0.75rem', color: theme.subtext, fontWeight: 700, display: 'block', marginBottom: '6px' }}>CON CUÁNTO PAGAN ($)</label>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    placeholder="0"
+                    value={montoEntregado}
+                    onChange={e => setMontoEntregado(e.target.value)}
+                    style={{ ...inputStyle, fontSize: '1.1rem', fontWeight: 900, color: '#10b981' }}
+                  />
+                  {Number(montoEntregado) > 0 && (
+                    <div style={{ marginTop: '8px', padding: '10px', backgroundColor: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: '10px', textAlign: 'right' }}>
+                      <div style={{ fontSize: '0.7rem', color: '#065f46', fontWeight: 700, letterSpacing: '0.5px' }}>VUELTO A ENTREGAR</div>
+                      <div style={{ fontSize: '1.4rem', fontWeight: 900, color: '#047857', fontFamily: 'monospace' }}>
+                        ${Math.max(0, Number(montoEntregado) - totalConDescuento()).toLocaleString('es-AR')}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div style={{ marginTop: '18px', borderTop: `1px dashed ${theme.border}`, paddingTop: '15px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: theme.subtext, marginBottom: '6px' }}>
@@ -982,6 +1089,12 @@ export default function Ventas({ stock, setStock, ventas, setVentas, darkMode = 
                     <span style={{ fontFamily: 'monospace' }}>−${descuento.toLocaleString()}</span>
                   </div>
                 )}
+                {descuentoEfectivo > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: '#f59e0b', marginBottom: '6px' }}>
+                    <span>Desc. Efectivo</span>
+                    <span style={{ fontFamily: 'monospace' }}>−${descuentoEfectivo.toLocaleString()}</span>
+                  </div>
+                )}
                 <div style={{
                   backgroundColor: theme.bg, padding: '14px', borderRadius: '14px',
                   border: `1px solid ${theme.border}`, textAlign: 'right', marginTop: '10px'
@@ -991,6 +1104,14 @@ export default function Ventas({ stock, setStock, ventas, setVentas, darkMode = 
                     ${totalConDescuento().toLocaleString()}
                   </div>
                 </div>
+                {metodoPago === 'Efectivo' && Number(montoEntregado) > 0 && Number(montoEntregado) > totalConDescuento() && (
+                  <div style={{ marginTop: '12px', padding: '12px', backgroundColor: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: '10px', textAlign: 'right' }}>
+                    <div style={{ fontSize: '0.7rem', color: '#065f46', fontWeight: 700, letterSpacing: '0.5px' }}>VUELTO A ENTREGAR</div>
+                    <div style={{ fontSize: '1.5rem', fontWeight: 900, color: '#047857', fontFamily: 'monospace' }}>
+                      ${Math.max(0, Number(montoEntregado) - totalConDescuento()).toLocaleString('es-AR')}
+                    </div>
+                  </div>
+                )}
 
                 <button
                   onClick={borradorActivo != null ? completarBorrador : finalizarVenta}
