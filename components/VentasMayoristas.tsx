@@ -417,57 +417,87 @@ export default function VentasMayoristas({ stock, setStock, ventas, setVentas, d
       ? Number(datos.saldo_cc)
       : Number(cuenta?.saldo_cc || 0);
 
-    const items = (Array.isArray(datos.items) ? datos.items : []).map((i: any) => ({
-      unidades: i.unidades,
-      nombre: tituloDe(i),
-      importe: i.unidades * (i.precio_venta || i.precio_original_mayorista || 0)
-    }));
+    const items = (Array.isArray(datos.items) ? datos.items : []).map((i: any) => {
+      const precioUnitario = i.precio_venta || i.precio_original_mayorista || 0;
+      return {
+        unidades: i.unidades,
+        nombre: tituloDe(i),
+        precioUnitario,
+        importe: i.unidades * precioUnitario
+      };
+    });
     const subtotal = items.reduce((acc: number, i: any) => acc + i.importe, 0);
-    const descuentoTotal = (datos.descuento || 0) + (datos.descuento_efectivo || 0);
     const total = datos.total;
     const vuelto = datos.vuelto || (datos.monto_entregado && datos.monto_entregado > total ? datos.monto_entregado - total : 0);
     const metodoPago = datos.metodo_pago;
+    const fechaSolo = String(datos.fecha || '').split(',')[0].trim() || new Date().toLocaleDateString('es-AR');
 
     let html = `
+      <!DOCTYPE html>
       <html>
         <head>
           <meta charset="utf-8" />
           <style>
-            @page { margin: 6mm; }
-            body { font-family: 'Courier New', monospace; padding: 8px; font-size: 13px; font-weight: bold; color: #000; }
+            @page { margin: 3mm; }
+            * { box-sizing: border-box; }
+            body { font-family: 'Courier New', monospace; padding: 2px; margin: 0; font-size: 10.5px; font-weight: bold; color: #000; }
             .text-center { text-align: center; }
-            h3 { margin: 0 0 5px; font-size: 16px; letter-spacing: 1px; }
-            .meta { margin-top: 3px; }
-            .divider { border-top: 2px dashed #000; margin: 10px 0; }
-            table { width: 100%; border-collapse: collapse; }
-            td { padding: 2px 0; vertical-align: top; word-break: break-word; }
-            td.cant { white-space: nowrap; padding-right: 6px; }
-            td.nom { }
-            td.imp { text-align: right; white-space: nowrap; padding-left: 8px; }
-            .total { font-size: 15px; font-weight: 900; margin-top: 4px; text-align: right; }
-            .pie { margin-top: 10px; text-align: center; }
-            .vuelto { color: #7c3aed; font-size: 14px; font-weight: 900; margin-top: 8px; }
+            h3 { margin: 0 0 2px; font-size: 13px; letter-spacing: 1px; }
+            .meta-row { display: flex; justify-content: space-between; gap: 4px; font-family: Arial, Helvetica, sans-serif; font-size: 8.5px; margin-top: 1px; }
+            .meta-row span { white-space: nowrap; }
+            .meta-row .cli { flex: 1 1 auto; min-width: 0; white-space: normal; text-align: center; padding: 0 2px; line-height: 1.15; }
+            .divider { border-top: 1px dashed #000; margin: 4px 0; }
+            table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+            th, td { padding: 0.5px 2px; vertical-align: top; }
+            th { font-size: 9px; text-transform: uppercase; border-bottom: 1px solid #000; }
+            td.nom { word-break: break-word; }
+            td.pu, th.pu { text-align: right; white-space: nowrap; }
+            td.cant, th.cant { text-align: center; white-space: nowrap; }
+            td.tot, th.tot { text-align: right; white-space: nowrap; }
+            .totales { font-size: 10px; }
+            .total { font-size: 12.5px; font-weight: 900; margin-top: 2px; text-align: right; }
+            .pie { margin-top: 6px; text-align: center; font-size: 10px; }
+            .vuelto { color: #7c3aed; font-size: 11px; font-weight: 900; margin-top: 2px; }
           </style>
         </head>
         <body>
           <div class="text-center">
             <h3>DISTRIBUIDORA INDIA</h3>
-            <div class="meta">${datos.fecha}</div>
-            <div class="meta">PAGO: ${metodoPago.toUpperCase()}</div>
-            <div class="meta">CLIENTE: ${cliente.toUpperCase()}</div>
+          </div>
+          <div class="meta-row">
+            <span>Fecha: ${fechaSolo}</span>
+            <span class="cli">Cliente: ${cliente}</span>
+            <span>Pago: ${metodoPago.toUpperCase()}</span>
           </div>
           <div class="divider"></div>
-          <table>${items.map((i: any) => `<tr><td class="cant">${i.unidades} x</td><td class="nom">${i.nombre}</td><td class="imp">$${i.importe.toLocaleString('es-AR')}</td></tr>`).join('')}</table>
+          <table>
+            <colgroup>
+              <col style="width:46%" /><col style="width:20%" /><col style="width:10%" /><col style="width:24%" />
+            </colgroup>
+            <thead>
+              <tr>
+                <th style="text-align:left">Producto</th>
+                <th class="pu">P.Unit</th>
+                <th class="cant">Cant</th>
+                <th class="tot">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${items.map((i: any) => `<tr><td class="nom">${i.nombre}</td><td class="pu">$${i.precioUnitario.toLocaleString('es-AR')}</td><td class="cant">${i.unidades}</td><td class="tot">$${i.importe.toLocaleString('es-AR')}</td></tr>`).join('')}
+            </tbody>
+          </table>
           <div class="divider"></div>
-          <div style="display:flex;justify-content:space-between"><span>Subtotal</span><span>$${subtotal.toLocaleString('es-AR')}</span></div>
-          ${(datos.descuento || 0) > 0 ? `<div style="display:flex;justify-content:space-between;color:#8b5cf6"><span>Desc. Gremio</span><span>−$${Number(datos.descuento).toLocaleString('es-AR')}</span></div>` : ''}
-          ${(datos.descuento_efectivo || 0) > 0 ? `<div style="display:flex;justify-content:space-between;color:#f59e0b"><span>Desc. Efectivo</span><span>−$${Number(datos.descuento_efectivo).toLocaleString('es-AR')}</span></div>` : ''}
+          <div class="totales">
+            <div style="display:flex;justify-content:space-between"><span>Subtotal</span><span>$${subtotal.toLocaleString('es-AR')}</span></div>
+            ${(datos.descuento || 0) > 0 ? `<div style="display:flex;justify-content:space-between;color:#8b5cf6"><span>Desc. Gremio</span><span>−$${Number(datos.descuento).toLocaleString('es-AR')}</span></div>` : ''}
+            ${(datos.descuento_efectivo || 0) > 0 ? `<div style="display:flex;justify-content:space-between;color:#f59e0b"><span>Desc. Efectivo</span><span>−$${Number(datos.descuento_efectivo).toLocaleString('es-AR')}</span></div>` : ''}
+          </div>
           <div class="divider"></div>
           <div class="total">TOTAL: $${Number(total).toLocaleString('es-AR')}</div>
           ${metodoPago === 'Cuenta Corriente' ? `<div class="pie">CUENTA CORRIENTE · SALDO: $${saldo.toLocaleString('es-AR')}</div>` : ''}
           ${metodoPago === 'Efectivo' && vuelto > 0 ? `
             <div class="divider"></div>
-            <div style="display:flex;justify-content:space-between"><span>Entregado</span><span>$${Number(datos.monto_entregado).toLocaleString('es-AR')}</span></div>
+            <div style="display:flex;justify-content:space-between;font-size:10px"><span>Entregado</span><span>$${Number(datos.monto_entregado).toLocaleString('es-AR')}</span></div>
             <div class="vuelto">VUELTO: $${vuelto.toLocaleString('es-AR')}</div>
           ` : ''}
         </body>
