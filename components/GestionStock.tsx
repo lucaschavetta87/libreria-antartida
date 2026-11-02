@@ -1050,6 +1050,14 @@ function VariedadesEditor({ variedades, onChange, darkMode, subirImagen }: any) 
                 <input type="text" placeholder="Heredar" value={v.precio_promo || ''} onChange={e => setPromo(v.id, e.target.value)} style={campoPrecio} />
               </label>
             </div>
+            {v.codigo && (
+              <div style={{ marginTop: '8px', paddingLeft: '54px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ backgroundColor: '#ffffff', borderRadius: '8px', border: `1px solid ${t.border}`, padding: '6px', display: 'flex', justifyContent: 'center' }}>
+                  <CodigoBarras codigo={v.codigo} width={150} height={36} />
+                </div>
+                <div style={{ fontFamily: 'monospace', fontSize: '0.75rem', fontWeight: 700, color: t.text, letterSpacing: '1px' }}>{v.codigo}</div>
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -2237,6 +2245,20 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
 
   const guardar = async (e: React.FormEvent) => {
     e.preventDefault();
+    // Validación de unicidad de códigos de variedad (no deben repetirse entre
+    // variedades ni con códigos de otros productos).
+    const codigosVariedadesForm = (form.variedades || []).map((v: any) => String(v.codigo || '').trim().toLowerCase()).filter(Boolean);
+    const repetidoInterno = codigosVariedadesForm.find((c, i) => codigosVariedadesForm.indexOf(c) !== i);
+    if (repetidoInterno) {
+      toast.error(`El código de variedad "${repetidoInterno}" está repetido. Elegí uno distinto.`);
+      return;
+    }
+    const ocupados = codigosOcupados((stock || []).filter((p: any) => String(p.id) !== String(form.id)));
+    const repetidoExterno = codigosVariedadesForm.find(c => ocupados.has(c));
+    if (repetidoExterno) {
+      toast.error(`El código de variedad "${repetidoExterno}" ya existe en otro producto/variedad.`);
+      return;
+    }
     setSubiendoImagen(true);
     let imagenFinal = form.imagen_url;
     if (imagenArchivo) {

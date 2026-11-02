@@ -357,6 +357,7 @@ export default function VentasMayoristas({ stock, setStock, ventas, setVentas, d
       variedad_nombre: variedadObj?.nombre || null,
       imagen: variedadObj?.imagen_url || producto.imagen_url,
       precio_original_mayorista: precioDe(producto, variedadObj, 'precio_mayorista') || precioDe(producto, variedadObj, 'precio_costo'),
+      precio_costo: precioDe(producto, variedadObj, 'precio_costo'),
       unidades: cantidad,
       precioModificado: false
     };
@@ -792,7 +793,7 @@ export default function VentasMayoristas({ stock, setStock, ventas, setVentas, d
                                        style={{ ...inputStyle, marginTop: '4px', padding: '5px 7px', fontSize: '0.75rem' }}
                                      >
                                        <option value="">Elegí una variedad</option>
-                                       {variedades.map((v: any) => <option key={v.id} value={v.id}>{v.nombre}</option>)}
+                                       {variedades.map((v: any) => <option key={v.id} value={v.id}>{v.nombre}{v.codigo ? ` · ${v.codigo}` : ''}</option>)}
                                      </select>
                                    )}
                                  </div>
@@ -958,7 +959,7 @@ export default function VentasMayoristas({ stock, setStock, ventas, setVentas, d
                             }}
                           >
                             <option value="">Sin variedad</option>
-                            {variedades.map((v: any) => <option key={v.id} value={v.id}>{v.nombre}</option>)}
+                            {variedades.map((v: any) => <option key={v.id} value={v.id}>{v.nombre}{v.codigo ? ` · ${v.codigo}` : ''}</option>)}
                           </select>
                         )}
                         <span>Precio:</span>

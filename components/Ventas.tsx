@@ -340,6 +340,7 @@ export default function Ventas({ stock, setStock, ventas, setVentas, darkMode = 
       variedad_nombre: variedadObj?.nombre || null,
       imagen: variedadObj?.imagen_url || producto.imagen_url,
       precio_original_minorista: precioDe(producto, variedadObj, 'precio_minorista'),
+      precio_costo: precioDe(producto, variedadObj, 'precio_costo'),
       unidades: cantidad,
       precioModificado: false
     };
@@ -797,7 +798,7 @@ export default function Ventas({ stock, setStock, ventas, setVentas, darkMode = 
                                    style={{ ...inputStyle, marginTop: '5px', padding: '5px 7px', fontSize: '0.75rem' }}
                                  >
                                    <option value="">Elegí una variedad</option>
-                                   {variedades.map((v: any) => <option key={v.id} value={v.id}>{v.nombre}</option>)}
+                                   {variedades.map((v: any) => <option key={v.id} value={v.id}>{v.nombre}{v.codigo ? ` · ${v.codigo}` : ''}</option>)}
                                  </select>
                                )}
                                 {promoDe(s, variedad) && (
@@ -974,7 +975,7 @@ export default function Ventas({ stock, setStock, ventas, setVentas, darkMode = 
                             }}
                           >
                             <option value="">Sin variedad</option>
-                            {variedades.map((v: any) => <option key={v.id} value={v.id}>{v.nombre}</option>)}
+                            {variedades.map((v: any) => <option key={v.id} value={v.id}>{v.nombre}{v.codigo ? ` · ${v.codigo}` : ''}</option>)}
                           </select>
                         )}
                         <span>Precio unitario:</span>
