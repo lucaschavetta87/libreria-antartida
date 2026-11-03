@@ -2156,9 +2156,11 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
         codigoFinal = generarCodigoUnico(ocupados);
       } else {
         codigoFinal = limpio;
-        const duplicado = (stock || []).some((p: any) =>
-          p.id !== item.id && String(p.codigo || '').trim().toLowerCase() === codigoFinal.toLowerCase()
-        );
+        const duplicado = (stock || []).some((p: any) => {
+          if (p.id === item.id) return false;
+          if (String(p.codigo || '').trim().toLowerCase() === codigoFinal.toLowerCase()) return true;
+          return (Array.isArray(p.variedades) ? p.variedades : []).some((v: any) => String(v.codigo || '').trim().toLowerCase() === codigoFinal.toLowerCase());
+        });
         if (duplicado) return { ok: false, error: `Ya existe otro producto con el código "${codigoFinal}". Elegí uno distinto.` };
       }
 
@@ -2260,14 +2262,10 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
 
   const guardar = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Validación de unicidad de códigos de variedad (no deben repetirse entre
-    // variedades ni con códigos de otros productos).
+    // Validación de unicidad de códigos de variedad: un código de variedad no
+    // debe repetirse con códigos de OTROS productos/variedades. Dentro del mismo
+    // producto se permite repetir un código entre variedades (caso necesario).
     const codigosVariedadesForm = (form.variedades || []).map((v: any) => String(v.codigo || '').trim().toLowerCase()).filter(Boolean);
-    const repetidoInterno = codigosVariedadesForm.find((c, i) => codigosVariedadesForm.indexOf(c) !== i);
-    if (repetidoInterno) {
-      toast.error(`El código de variedad "${repetidoInterno}" está repetido. Elegí uno distinto.`);
-      return;
-    }
     const ocupados = codigosOcupados((stock || []).filter((p: any) => String(p.id) !== String(form.id)));
     const repetidoExterno = codigosVariedadesForm.find(c => ocupados.has(c));
     if (repetidoExterno) {
