@@ -823,8 +823,8 @@ function ModalDetalle({ item, darkMode, onClose, onEdit, onDelete, obtenerLabelC
 
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 1000, backgroundColor: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', backdropFilter: 'blur(6px)' }}>
-      <div onClick={e => e.stopPropagation()} style={{ backgroundColor: theme.card, borderRadius: '24px', width: '100%', maxWidth: '520px', border: `1px solid ${theme.border}`, overflow: 'hidden', boxShadow: '0 25px 60px rgba(0,0,0,0.5)', maxHeight: '90vh', overflowY: 'auto' }}>
-        <div style={{ width: '100%', height: '240px', backgroundColor: theme.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', position: 'relative' }}>
+      <div onClick={e => e.stopPropagation()} style={{ backgroundColor: theme.card, borderRadius: '24px', width: '100%', maxWidth: '900px', border: `1px solid ${theme.border}`, overflow: 'hidden', boxShadow: '0 25px 60px rgba(0,0,0,0.5)', maxHeight: '92vh', overflowY: 'auto' }}>
+        <div style={{ width: '100%', height: '360px', backgroundColor: theme.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', position: 'relative' }}>
           {item.sin_stock && <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(255,255,255,0.4)', zIndex: 1 }} />}
           {item.sin_stock && <span style={{ position: 'absolute', top: '15px', left: '15px', zIndex: 2, backgroundColor: '#374151', color: 'white', fontWeight: 800, padding: '6px 12px', borderRadius: '8px', fontSize: '0.8rem' }}>🚫 AGOTADO</span>}
           {item.imagen_url ? <img src={item.imagen_url} alt={item.nombre} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <div style={{ textAlign: 'center', color: theme.subtext }}><div style={{ fontSize: '4rem', marginBottom: '8px' }}>📦</div><div style={{ fontSize: '0.85rem' }}>Sin imagen</div></div>}
@@ -1429,7 +1429,22 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Las categorías principales se marcan en la columna `es_principal` y el
+  // Pistola de códigos de barras en el buscador de stock: si el texto ingresado
+  // coincide exactamente con el código de un producto o de una variedad, abrir
+  // la ficha automáticamente. Solo coincidencia exacta para no interferir al tipear.
+  useEffect(() => {
+    const term = busqueda.trim();
+    if (!term || term.length < 3 || productoSeleccionado) return;
+    const encontrado = (stock || []).find((p: any) =>
+      String(p.codigo || '').trim().toLowerCase() === term.toLowerCase() ||
+      (Array.isArray(p.variedades) && p.variedades.some((v: any) => String(v.codigo || '').trim().toLowerCase() === term.toLowerCase()))
+    );
+    if (encontrado) {
+      setProductoSeleccionado(encontrado);
+      setBusqueda('');
+      setPaginaActual(1);
+    }
+  }, [busqueda, stock, productoSeleccionado]);
   // "ojito" de la web usa `visible_web`. Si alguna de las dos todavía no existe
   // en Supabase, el sistema sigue funcionando y solo se apaga esa función,
   // para que se pueda probar sin romper nada.
@@ -2962,7 +2977,7 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
       {mensajeEstado && <div style={{ padding: '12px 20px', borderRadius: '12px', backgroundColor: '#ecfdf5', color: '#065f46', fontSize: '14.5px', fontWeight: '700', border: '1px solid #10b981', display: 'inline-block' }}>{mensajeEstado}</div>}
 
       {mostrarModalFormulario && (
-        <ModalGenerico titulo={editando ? '✏️ Editar producto' : '➕ Agregar producto'} darkMode={darkMode} onClose={resetForm} maxWidth="640px">
+        <ModalGenerico titulo={editando ? '✏️ Editar producto' : '➕ Agregar producto'} darkMode={darkMode} onClose={resetForm} maxWidth="820px">
           <FormularioProducto form={form} setForm={setForm} editando={editando} resetForm={resetForm} guardar={guardar} subiendoImagen={subiendoImagen} imagenArchivo={imagenArchivo} setImagenArchivo={setImagenArchivo} fileInputRef={fileInputRef} isMobile={isMobile} theme={theme} inputStyle={inputStyle} btnBaseStyle={btnBaseStyle} CATEGORIAS={categorias} />
           <VariedadesEditor variedades={form.variedades} onChange={(nuevas: Variedad[]) => setForm(f => ({ ...f, variedades: nuevas }))} darkMode={darkMode} subirImagen={subirImagen} />
         </ModalGenerico>
