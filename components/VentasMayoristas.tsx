@@ -441,24 +441,24 @@ export default function VentasMayoristas({ stock, setStock, ventas, setVentas, d
           <style>
             @page { margin: 3mm; }
             * { box-sizing: border-box; }
-            body { font-family: 'Courier New', monospace; padding: 2px; margin: 0; font-size: 12px; font-weight: bold; color: #000; }
+            body { font-family: 'Courier New', monospace; padding: 2px; margin: 0; font-size: 15px; font-weight: bold; color: #000; }
             .text-center { text-align: center; }
-            h3 { margin: 0 0 2px; font-size: 15px; letter-spacing: 1px; }
-            .meta-row { display: flex; justify-content: space-between; gap: 4px; font-family: Arial, Helvetica, sans-serif; font-size: 10px; margin-top: 1px; }
+            h3 { margin: 0 0 2px; font-size: 20px; letter-spacing: 1px; }
+            .meta-row { display: flex; justify-content: space-between; gap: 4px; font-family: Arial, Helvetica, sans-serif; font-size: 12px; margin-top: 1px; }
             .meta-row span { white-space: nowrap; }
             .meta-row .cli { flex: 1 1 auto; min-width: 0; white-space: normal; text-align: center; padding: 0 2px; line-height: 1.15; }
             .divider { border-top: 1px dashed #000; margin: 4px 0; }
             table { width: 100%; border-collapse: collapse; table-layout: fixed; }
             th, td { padding: 0.5px 2px; vertical-align: top; }
-            th { font-size: 11px; text-transform: uppercase; border-bottom: 1px solid #000; }
+            th { font-size: 15px; text-transform: uppercase; border-bottom: 1px solid #000; }
             td.nom { word-break: break-word; }
             td.pu, th.pu { text-align: right; white-space: nowrap; }
             td.cant, th.cant { text-align: center; white-space: nowrap; }
             td.tot, th.tot { text-align: right; white-space: nowrap; }
-            .totales { font-size: 11.5px; }
+            .totales { font-size: 15px; }
             .total { font-size: 15px; font-weight: 900; margin-top: 2px; text-align: right; }
-            .pie { margin-top: 6px; text-align: center; font-size: 10px; }
-            .vuelto { color: #7c3aed; font-size: 12.5px; font-weight: 900; margin-top: 2px; }
+            .pie { margin-top: 6px; text-align: center; font-size: 12px; }
+            .vuelto { color: #7c3aed; font-size: 15px; font-weight: 900; margin-top: 2px; }
           </style>
         </head>
         <body>
@@ -498,7 +498,7 @@ export default function VentasMayoristas({ stock, setStock, ventas, setVentas, d
           ${metodoPago === 'Cuenta Corriente' ? `<div class="pie">CUENTA CORRIENTE · SALDO: $${saldo.toLocaleString('es-AR')}</div>` : ''}
           ${metodoPago === 'Efectivo' && vuelto > 0 ? `
             <div class="divider"></div>
-            <div style="display:flex;justify-content:space-between;font-size:11.5px"><span>Entregado</span><span>$${Number(datos.monto_entregado).toLocaleString('es-AR')}</span></div>
+            <div style="display:flex;justify-content:space-between;font-size:15px"><span>Entregado</span><span>$${Number(datos.monto_entregado).toLocaleString('es-AR')}</span></div>
             <div class="vuelto">VUELTO: $${vuelto.toLocaleString('es-AR')}</div>
           ` : ''}
         </body>
