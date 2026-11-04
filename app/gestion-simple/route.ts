@@ -13,6 +13,18 @@ export async function GET() {
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: rgba(0,0,0,0.1); }
   body { font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif; background: #f1f5f9; color: #0f172a; font-size: 16px; }
+  .login-screen { position: fixed; inset: 0; background: #1e293b; z-index: 300; display: flex; align-items: center; justify-content: center; padding: 20px; }
+  .login-screen.hidden { display: none; }
+  .login-box { background: #fff; border-radius: 16px; padding: 24px; width: 100%; max-width: 360px; }
+  .login-box h2 { font-size: 20px; font-weight: 800; margin-bottom: 16px; text-align: center; color: #0f172a; }
+  .login-box input { width: 100%; padding: 12px 14px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 16px; margin-bottom: 10px; outline: none; }
+  .login-box input:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.3); }
+  .login-box button { width: 100%; padding: 14px; background: #3b82f6; color: #fff; border: none; border-radius: 10px; font-size: 16px; font-weight: 800; cursor: pointer; margin-top: 6px; }
+  .login-box button:active { opacity: 0.8; }
+  .login-box .error { color: #dc2626; font-size: 14px; font-weight: 700; margin-top: 8px; text-align: center; min-height: 20px; }
+  .login-box .hint { font-size: 12px; color: #94a3b8; text-align: center; margin-top: 10px; }
+  .logout-btn { padding: 6px 12px; background: #dc2626; color: #fff; border: none; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: pointer; }
+  .logout-btn:active { opacity: 0.8; }
 
   .header { background: #1e293b; color: #fff; padding: 10px 14px; position: sticky; top: 0; z-index: 20; }
   .header h1 { font-size: 18px; font-weight: 800; margin-bottom: 8px; }
@@ -94,8 +106,22 @@ export async function GET() {
 </head>
 <body>
 
+<div class="login-screen" id="loginScreen">
+  <div class="login-box">
+    <h2>🔐 Acceso</h2>
+    <input type="text" id="loginUser" placeholder="Usuario" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+    <input type="password" id="loginPass" placeholder="Contraseña" autocomplete="off">
+    <button onclick="intentarLogin()">Ingresar</button>
+    <div class="error" id="loginError"></div>
+    <div class="hint">Gestión Simple - iPad</div>
+  </div>
+</div>
+
 <div class="header">
-  <h1>📱 Gestión Simple</h1>
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+    <h1 style="margin-bottom: 0;">📱 Gestión Simple</h1>
+    <button class="logout-btn" onclick="cerrarSesion()">Salir</button>
+  </div>
   <div class="tabs">
     <button class="tab-btn active" id="tabStock" onclick="cambiarTab('stock')">📦 Stock</button>
     <button class="tab-btn" id="tabPedidos" onclick="cambiarTab('pedidos')">🛒 Pedidos Web</button>
@@ -129,6 +155,39 @@ export async function GET() {
 <div class="toast" id="toast"></div>
 
 <script>
+function intentarLogin() {
+  var u = document.getElementById('loginUser').value.trim().toLowerCase();
+  var p = document.getElementById('loginPass').value.trim();
+  if ((u === 'laindia' && p === 'laindia1234') || (u === 'admin' && p === 'admin123')) {
+    localStorage.setItem('gs_auth', '1');
+    document.getElementById('loginScreen').className = 'login-screen hidden';
+    cargarProductos();
+  } else {
+    document.getElementById('loginError').textContent = 'Usuario o contraseña incorrectos';
+  }
+}
+
+function cerrarSesion() {
+  localStorage.removeItem('gs_auth');
+  document.getElementById('loginScreen').className = 'login-screen';
+  document.getElementById('loginUser').value = '';
+  document.getElementById('loginPass').value = '';
+  document.getElementById('loginError').textContent = '';
+}
+
+// Check auth on load
+if (localStorage.getItem('gs_auth') === '1') {
+  document.getElementById('loginScreen').className = 'login-screen hidden';
+}
+
+// Enter key handlers for login
+document.getElementById('loginPass').onkeydown = function(e) {
+  if (e.key === 'Enter') intentarLogin();
+};
+document.getElementById('loginUser').onkeydown = function(e) {
+  if (e.key === 'Enter') document.getElementById('loginPass').focus();
+};
+
 var SUPABASE_URL = '${SUPABASE_URL}';
 var SUPABASE_KEY = '${SUPABASE_KEY}';
 
@@ -162,7 +221,7 @@ function cambiarTab(tab) {
   document.getElementById('contentStock').className = 'tab-content' + (tab === 'stock' ? ' active' : '');
   document.getElementById('contentPedidos').className = 'tab-content' + (tab === 'pedidos' ? ' active' : '');
   document.getElementById('searchWrapStock').style.display = tab === 'stock' ? 'block' : 'none';
-  if (tab === 'pedidos' && pedidos.length === 0) cargarPedidos();
+  if (tab === 'pedidos' && pedidos.length === 0 && localStorage.getItem('gs_auth') === '1') cargarPedidos();
   // Hide detail views when switching tabs
   document.getElementById('detailStock').className = 'detail-view';
   document.getElementById('detailPedidos').className = 'detail-view';
@@ -513,7 +572,9 @@ document.getElementById('searchStock').onkeydown = function(e) {
   }
 };
 
-cargarProductos();
+if (localStorage.getItem('gs_auth') === '1') {
+  cargarProductos();
+}
 </script>
 </body>
 </html>`;
