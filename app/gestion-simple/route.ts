@@ -14,7 +14,6 @@ export async function GET() {
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: rgba(0,0,0,0.1); }
   body { font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif; background: #f1f5f9; color: #0f172a; font-size: 16px; }
 
-  /* Header */
   .header { background: #1e293b; color: #fff; padding: 10px 14px; position: sticky; top: 0; z-index: 20; }
   .header h1 { font-size: 18px; font-weight: 800; margin-bottom: 8px; }
   .tabs { display: flex; }
@@ -23,27 +22,51 @@ export async function GET() {
   .tab-btn.active { background: #3b82f6; color: #fff; }
   .tab-btn:active { opacity: 0.8; }
 
-  /* Search */
   .search-wrap { padding: 8px 14px; background: #1e293b; }
   .search { width: 100%; padding: 12px 16px; border: none; border-radius: 10px; font-size: 18px; outline: none; }
   .count { font-size: 13px; color: #94a3b8; margin-top: 6px; text-align: center; }
 
-  /* Content */
   .content { padding: 8px; }
   .tab-content { display: none; }
   .tab-content.active { display: block; }
 
-  /* Stock cards */
   .card { background: #fff; border-radius: 12px; margin-bottom: 8px; padding: 12px; display: flex; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1); cursor: pointer; min-height: 72px; }
   .card:active { background: #e2e8f0; }
   .card img { width: 56px; height: 56px; object-fit: contain; border-radius: 8px; background: #f8fafc; flex-shrink: 0; margin-right: 12px; }
   .card .info { flex: 1; min-width: 0; }
   .card .nombre { font-weight: 700; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .card .codigo { font-family: monospace; font-size: 13px; color: #6474b; margin-top: 2px; }
+  .card .codigo { font-family: monospace; font-size: 13px; color: #64748b; margin-top: 2px; }
   .card .precio { font-weight: 800; color: #16a34a; font-size: 17px; margin-top: 2px; }
   .card .det { font-size: 12px; color: #94a3b8; margin-top: 2px; }
   .empty { text-align: center; padding: 40px 20px; color: #64748b; font-size: 16px; }
   .loading { text-align: center; padding: 40px; color: #64748b; }
+
+  /* Detail view (full screen, no modal) */
+  .detail-view { display: none; }
+  .detail-view.active { display: block; }
+  .detail-back { display: inline-block; padding: 10px 16px; background: #3b82f6; color: #fff; border: none; border-radius: 8px; font-size: 15px; font-weight: 700; margin-bottom: 12px; cursor: pointer; }
+  .detail-back:active { opacity: 0.8; }
+  .detail-card { background: #fff; border-radius: 16px; padding: 16px; margin-bottom: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+  .detail-card img { width: 100%; max-height: 220px; object-fit: contain; border-radius: 12px; background: #f8fafc; margin-bottom: 12px; }
+  .detail-card h2 { font-size: 20px; font-weight: 800; margin-bottom: 12px; }
+  .detail-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e2e8f0; font-size: 15px; }
+  .detail-row .label { color: #64748b; font-weight: 600; }
+  .detail-row .value { font-weight: 700; text-align: right; max-width: 60%; }
+  .detail-section { font-weight: 800; font-size: 14px; color: #3b82f6; margin: 12px 0 6px; }
+  .detail-variedad { background: #f1f5f9; border-radius: 8px; padding: 8px 12px; margin-bottom: 6px; }
+  .detail-variedad .nom { font-weight: 700; font-size: 15px; }
+  .detail-variedad .det { font-size: 12px; color: #64748b; margin-top: 2px; }
+  .detail-item { background: #f8fafc; border-radius: 8px; padding: 8px 12px; margin-bottom: 6px; border: 1px solid #e2e8f0; }
+  .detail-item .nom { font-weight: 700; font-size: 15px; }
+  .detail-item .det { font-size: 13px; color: #64748b; margin-top: 2px; }
+  .detail input, .detail select { width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 16px; margin-top: 4px; margin-bottom: 8px; }
+  .detail label { font-size: 13px; font-weight: 700; color: #64748b; display: block; margin-top: 8px; }
+  .detail-btn { width: 100%; padding: 14px; border: none; border-radius: 10px; font-size: 16px; font-weight: 800; margin-top: 8px; cursor: pointer; }
+  .detail-btn:active { opacity: 0.8; }
+  .btn-blue { background: #3b82f6; color: #fff; }
+  .btn-green { background: #16a34a; color: #fff; }
+  .btn-gray { background: #64748b; color: #fff; }
+  .btn-close { background: #e2e8f0; color: #0f172a; }
 
   /* Pedidos */
   .pedido-card { background: #fff; border-radius: 12px; margin-bottom: 8px; padding: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); cursor: pointer; }
@@ -60,30 +83,6 @@ export async function GET() {
   .filtro-btn { padding: 8px 14px; border: none; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; background: #334155; color: #cbd5e1; white-space: nowrap; flex-shrink: 0; }
   .filtro-btn.active { background: #3b82f6; color: #fff; }
 
-  /* Modal */
-  .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 100; display: none; align-items: center; justify-content: center; padding: 12px; }
-  .modal-bg.show { display: flex; }
-  .modal { background: #fff; border-radius: 16px; width: 100%; max-width: 520px; max-height: 92vh; overflow-y: auto; padding: 16px; }
-  .modal h2 { font-size: 20px; font-weight: 800; margin-bottom: 12px; }
-  .modal img { width: 100%; max-height: 200px; object-fit: contain; border-radius: 12px; background: #f8fafc; margin-bottom: 12px; }
-  .modal .row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e2e8f0; font-size: 15px; }
-  .modal .row .label { color: #64748b; font-weight: 600; }
-  .modal .row .value { font-weight: 700; text-align: right; max-width: 60%; }
-  .modal .section { font-weight: 800; font-size: 14px; color: #3b82f6; margin: 12px 0 6px; }
-  .modal .variedad { background: #f1f5f9; border-radius: 8px; padding: 8px 12px; margin-bottom: 6px; }
-  .modal .variedad .nom { font-weight: 700; font-size: 15px; }
-  .modal .variedad .det { font-size: 12px; color: #64748b; margin-top: 2px; }
-  .modal .item { background: #f8fafc; border-radius: 8px; padding: 8px 12px; margin-bottom: 6px; border: 1px solid #e2e8f0; }
-  .modal .item .nom { font-weight: 700; font-size: 15px; }
-  .modal .item .det { font-size: 13px; color: #64748b; margin-top: 2px; }
-  .modal .btn { width: 100%; padding: 14px; border: none; border-radius: 10px; font-size: 16px; font-weight: 800; margin-top: 8px; cursor: pointer; }
-  .modal .btn:active { opacity: 0.8; }
-  .btn-blue { background: #3b82f6; color: #fff; }
-  .btn-green { background: #16a34a; color: #fff; }
-  .btn-gray { background: #64748b; color: #fff; }
-  .btn-close { background: #e2e8f0; color: #0f172a; }
-  .modal input, .modal select { width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 16px; margin-top: 4px; margin-bottom: 8px; }
-  .modal label { font-size: 13px; font-weight: 700; color: #64748b; display: block; margin-top: 8px; }
   .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #1e293b; color: #fff; padding: 12px 20px; border-radius: 10px; font-size: 14px; font-weight: 700; z-index: 200; display: none; max-width: 90%; text-align: center; }
   .toast.show { display: block; }
   .toast.error { background: #dc2626; }
@@ -111,6 +110,7 @@ export async function GET() {
 <div class="content">
   <div class="tab-content active" id="contentStock">
     <div id="listStock"><div class="loading">Cargando productos...</div></div>
+    <div id="detailStock" class="detail-view"></div>
   </div>
 
   <!-- TAB PEDIDOS -->
@@ -122,11 +122,8 @@ export async function GET() {
       <button class="filtro-btn" data-filtro="completado" onclick="filtrarPedidos('completado')">Completados</button>
     </div>
     <div id="listPedidos"><div class="loading">Cargando pedidos...</div></div>
+    <div id="detailPedidos" class="detail-view"></div>
   </div>
-</div>
-
-<div class="modal-bg" id="modalBg">
-  <div class="modal" id="modal"></div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -166,6 +163,11 @@ function cambiarTab(tab) {
   document.getElementById('contentPedidos').className = 'tab-content' + (tab === 'pedidos' ? ' active' : '');
   document.getElementById('searchWrapStock').style.display = tab === 'stock' ? 'block' : 'none';
   if (tab === 'pedidos' && pedidos.length === 0) cargarPedidos();
+  // Hide detail views when switching tabs
+  document.getElementById('detailStock').className = 'detail-view';
+  document.getElementById('detailPedidos').className = 'detail-view';
+  document.getElementById('listStock').style.display = 'block';
+  document.getElementById('listPedidos').style.display = 'block';
 }
 
 /* ============ STOCK ============ */
@@ -235,46 +237,65 @@ function renderStock() {
 
 function mostrarDetalleStock(p) {
   productoEditando = p;
-  var modal = document.getElementById('modal');
+  document.getElementById('listStock').style.display = 'none';
+  document.getElementById('searchWrapStock').style.display = 'none';
+  var dv = document.getElementById('detailStock');
+  dv.className = 'detail-view active';
   var img = p.imagen_url ? '<img src="' + p.imagen_url + '" alt="">' : '';
   var vars = Array.isArray(p.variedades) ? p.variedades : [];
   var varHtml = '';
   if (vars.length > 0) {
-    varHtml = '<div class="section">Variedades (' + vars.length + ')</div>';
+    varHtml = '<div class="detail-section">Variedades (' + vars.length + ')</div>';
     for (var i = 0; i < vars.length; i++) {
       var v = vars[i];
-      varHtml += '<div class="variedad">' +
+      varHtml += '<div class="detail-variedad">' +
         '<div class="nom">' + esc(v.nombre || 'Sin nombre') + '</div>' +
         '<div class="det">Código: ' + (v.codigo || p.codigo || '—') + ' · Costo: $' + fmt(v.precio_costo != null ? v.precio_costo : p.precio_costo) + ' · Mayorista: $' + fmt(v.precio_mayorista != null ? v.precio_mayorista : p.precio_mayorista) + ' · Minorista: $' + fmt(v.precio_minorista != null ? v.precio_minorista : p.precio_minorista) + '</div>' +
       '</div>';
     }
   }
-  var html = img +
-    '<h2>' + esc(p.nombre || 'Sin nombre') + '</h2>' +
-    '<label>Nombre</label>' +
-    '<input type="text" id="editNombre" value="' + esc(p.nombre || '') + '">' +
-    '<label>Código de barras</label>' +
-    '<input type="text" id="editCodigo" value="' + esc(p.codigo || '') + '" style="font-family:monospace;">' +
-    '<label>Costo</label>' +
-    '<input type="number" id="editCosto" value="' + (p.precio_costo || 0) + '">' +
-    '<label>IVA %</label>' +
-    '<input type="number" id="editIva" value="' + (p.precio_iva || 0) + '">' +
-    '<label>Mayorista</label>' +
-    '<input type="number" id="editMayorista" value="' + (p.precio_mayorista || 0) + '">' +
-    '<label>Minorista</label>' +
-    '<input type="number" id="editMinorista" value="' + (p.precio_minorista || 0) + '">' +
-    '<label>Promo</label>' +
-    '<input type="text" id="editPromo" value="' + esc(p.precio_promo || '') + '">' +
-    varHtml +
-    '<button class="btn btn-green" onclick="guardarEdicion()">💾 Guardar cambios</button>' +
-    '<button class="btn btn-close" onclick="cerrarModal()">Cerrar</button>';
-  modal.innerHTML = html;
-  document.getElementById('modalBg').className = 'modal-bg show';
+  var html = '<button class="detail-back" onclick="volverStock()">← Volver</button>' +
+    '<div class="detail-card">' +
+      img +
+      '<h2>' + esc(p.nombre || 'Sin nombre') + '</h2>' +
+      '<label>Nombre</label>' +
+      '<input type="text" id="editNombre" value="' + esc(p.nombre || '') + '">' +
+      '<label>Código de barras</label>' +
+      '<input type="text" id="editCodigo" value="' + esc(p.codigo || '') + '" style="font-family:monospace;">' +
+      '<label>Costo</label>' +
+      '<input type="number" id="editCosto" value="' + (p.precio_costo || 0) + '">' +
+      '<label>IVA %</label>' +
+      '<input type="number" id="editIva" value="' + (p.precio_iva || 0) + '">' +
+      '<label>Mayorista</label>' +
+      '<input type="number" id="editMayorista" value="' + (p.precio_mayorista || 0) + '">' +
+      '<label>Minorista</label>' +
+      '<input type="number" id="editMinorista" value="' + (p.precio_minorista || 0) + '">' +
+      '<label>Promo</label>' +
+      '<input type="text" id="editPromo" value="' + esc(p.precio_promo || '') + '">' +
+      '<div class="detail-row"><span class="label">Categoría</span><span class="value">' + esc(p.categoria || '—') + '</span></div>' +
+      (p.sin_stock ? '<div class="detail-row"><span class="label">Stock</span><span class="value" style="color:#dc2626;">Sin stock</span></div>' : '') +
+      (p.visible_web === false ? '<div class="detail-row"><span class="label">Web</span><span class="value" style="color:#d97706;">Oculto</span></div>' : '') +
+      varHtml +
+      '<button class="detail-btn btn-green" data-accion="guardar">💾 Guardar cambios</button>' +
+      '<button class="detail-btn btn-close" onclick="volverStock()">Cerrar</button>' +
+    '</div>';
+  dv.innerHTML = html;
+  // Attach save handler
+  var saveBtn = dv.querySelector('[data-accion="guardar"]');
+  if (saveBtn) saveBtn.onclick = function() { guardarEdicion(); };
+}
+
+function volverStock() {
+  document.getElementById('detailStock').className = 'detail-view';
+  document.getElementById('detailStock').innerHTML = '';
+  document.getElementById('listStock').style.display = 'block';
+  document.getElementById('searchWrapStock').style.display = 'block';
+  productoEditando = null;
 }
 
 function guardarEdicion() {
   if (!productoEditando) return;
-  var btn = document.querySelector('.btn-green');
+  var btn = document.querySelector('[data-accion="guardar"]');
   if (btn) { btn.disabled = true; btn.textContent = 'Guardando...'; }
   var cambios = {
     nombre: document.getElementById('editNombre').value.trim(),
@@ -289,19 +310,15 @@ function guardarEdicion() {
     if (!r.ok) throw new Error('Error ' + r.status);
     return r.json();
   }).then(function(data) {
-    var actualizado = Array.isArray(data) ? data[0] : data;
-    if (actualizado) {
-      // actualizar en memoria
-      for (var i = 0; i < productos.length; i++) {
-        if (String(productos[i].id) === String(productoEditando.id)) {
-          for (var k in cambios) productos[i][k] = cambios[k];
-          productos[i].nombre = cambios.nombre;
-          break;
-        }
+    for (var i = 0; i < productos.length; i++) {
+      if (String(productos[i].id) === String(productoEditando.id)) {
+        for (var k in cambios) productos[i][k] = cambios[k];
+        productos[i].nombre = cambios.nombre;
+        break;
       }
     }
     showToast('Producto actualizado', 'ok');
-    cerrarModal();
+    volverStock();
     filtrarStock();
   }).catch(function(e) {
     showToast('Error al guardar: ' + (e.message || e), 'error');
@@ -309,8 +326,8 @@ function guardarEdicion() {
   });
 }
 
-document.getElementById('searchStock') && (document.getElementById('searchStock').oninput = filtrarStock);
-document.getElementById('searchStock') && (document.getElementById('searchStock').onkeydown = function(e) {
+document.getElementById('searchStock').oninput = filtrarStock;
+document.getElementById('searchStock').onkeydown = function(e) {
   if (e.key === 'Enter') {
     var term = this.value.trim().toLowerCase();
     if (term.length < 2) return;
@@ -324,7 +341,7 @@ document.getElementById('searchStock') && (document.getElementById('searchStock'
     })[0];
     if (match) { mostrarDetalleStock(match); this.value = ''; filtrarStock(); }
   }
-});
+};
 
 /* ============ PEDIDOS WEB ============ */
 var pedidos = [];
@@ -387,7 +404,9 @@ function renderPedidos() {
 
 function mostrarDetallePedido(p) {
   pedidoSeleccionado = p;
-  var modal = document.getElementById('modal');
+  document.getElementById('listPedidos').style.display = 'none';
+  var dv = document.getElementById('detailPedidos');
+  dv.className = 'detail-view active';
   var items = Array.isArray(p.productos) ? p.productos : [];
   var itemsHtml = '';
   for (var i = 0; i < items.length; i++) {
@@ -396,53 +415,59 @@ function mostrarDetallePedido(p) {
     var variedad = it.variedad ? it.variedad.nombre : '';
     var cant = it.cantidad_pedida || it.cantidad || it.unidades || 1;
     var precio = it.producto ? it.producto.precio : (it.precio || 0);
-    itemsHtml += '<div class="item">' +
+    itemsHtml += '<div class="detail-item">' +
       '<div class="nom">' + esc(nombre) + (variedad ? ' · ' + esc(variedad) : '') + '</div>' +
       '<div class="det">Cant: ' + cant + ' · Precio: $' + fmt(precio) + ' · Subtotal: $' + fmt(precio * cant) + '</div>' +
     '</div>';
   }
   var estado = p.estado || 'pendiente';
-  var html = '<h2>Pedido #' + p.id + '</h2>' +
-    '<div class="row"><span class="label">Cliente</span><span class="value">' + esc(p.nombre || '—') + '</span></div>' +
-    '<div class="row"><span class="label">Teléfono</span><span class="value">' + esc(p.telefono || '—') + '</span></div>' +
-    '<div class="row"><span class="label">Envío</span><span class="value">' + esc(p.metodo_envio || '—') + '</span></div>' +
-    (p.direccion ? '<div class="row"><span class="label">Dirección</span><span class="value">' + esc(p.direccion) + '</span></div>' : '') +
-    '<div class="row"><span class="label">Fecha</span><span class="value">' + (p.created_at ? new Date(p.created_at).toLocaleDateString('es-AR') : '—') + '</span></div>' +
-    '<div class="row"><span class="label">Estado</span><span class="value">' + estado + '</span></div>' +
-    '<div class="row"><span class="label">Total</span><span class="value" style="color:#16a34a;">$' + fmt(p.total) + '</span></div>' +
-    '<div class="section">Productos (' + items.length + ')</div>' +
-    itemsHtml +
-    (p.vendedor ? '<div class="row"><span class="label">Vendedor</span><span class="value">' + esc(p.vendedor) + '</span></div>' : '');
-  // Action buttons
+  var html = '<button class="detail-back" onclick="volverPedidos()">← Volver</button>' +
+    '<div class="detail-card">' +
+      '<h2>Pedido #' + p.id + '</h2>' +
+      '<div class="detail-row"><span class="label">Cliente</span><span class="value">' + esc(p.nombre || '—') + '</span></div>' +
+      '<div class="detail-row"><span class="label">Teléfono</span><span class="value">' + esc(p.telefono || '—') + '</span></div>' +
+      '<div class="detail-row"><span class="label">Envío</span><span class="value">' + esc(p.metodo_envio || '—') + '</span></div>' +
+      (p.direccion ? '<div class="detail-row"><span class="label">Dirección</span><span class="value">' + esc(p.direccion) + '</span></div>' : '') +
+      '<div class="detail-row"><span class="label">Fecha</span><span class="value">' + (p.created_at ? new Date(p.created_at).toLocaleDateString('es-AR') : '—') + '</span></div>' +
+      '<div class="detail-row"><span class="label">Estado</span><span class="value">' + estado + '</span></div>' +
+      '<div class="detail-row"><span class="label">Total</span><span class="value" style="color:#16a34a;">$' + fmt(p.total) + '</span></div>' +
+      '<div class="detail-section">Productos (' + items.length + ')</div>' +
+      itemsHtml +
+      (p.vendedor ? '<div class="detail-row"><span class="label">Vendedor</span><span class="value">' + esc(p.vendedor) + '</span></div>' : '');
   if (estado === 'pendiente') {
-    html += '<button class="btn btn-blue" data-accion="preparando">🔵 Marcar preparando</button>';
+    html += '<button class="detail-btn btn-blue" data-accion="preparando">🔵 Marcar preparando</button>';
   }
   if (estado === 'preparando') {
-    html += '<button class="btn btn-green" data-accion="completado">✅ Marcar completado</button>';
+    html += '<button class="detail-btn btn-green" data-accion="completado">✅ Marcar completado</button>';
   }
   if (estado === 'completado') {
     html += '<div style="text-align:center;padding:12px;color:#16a34a;font-weight:800;">✅ Pedido completado</div>';
   }
-  html += '<button class="btn btn-close" onclick="cerrarModal()">Cerrar</button>';
-  modal.innerHTML = html;
-  // Attach action button handlers
-  var actionBtns = modal.querySelectorAll('[data-accion]');
+  html += '<button class="detail-btn btn-close" onclick="volverPedidos()">Cerrar</button>';
+  html += '</div>';
+  dv.innerHTML = html;
+  var actionBtns = dv.querySelectorAll('[data-accion]');
   for (var ab = 0; ab < actionBtns.length; ab++) {
     actionBtns[ab].onclick = function() { marcarEstado(this.getAttribute('data-accion')); };
   }
-  document.getElementById('modalBg').className = 'modal-bg show';
+}
+
+function volverPedidos() {
+  document.getElementById('detailPedidos').className = 'detail-view';
+  document.getElementById('detailPedidos').innerHTML = '';
+  document.getElementById('listPedidos').style.display = 'block';
+  pedidoSeleccionado = null;
 }
 
 function marcarEstado(nuevoEstado) {
   if (!pedidoSeleccionado) return;
-  var btns = document.querySelectorAll('.btn-blue, .btn-green');
+  var btns = document.querySelectorAll('.detail-btn');
   for (var i = 0; i < btns.length; i++) { btns[i].disabled = true; btns[i].textContent = 'Guardando...'; }
   api('pedidos_web?id=eq.' + pedidoSeleccionado.id, { method: 'PATCH', body: { estado: nuevoEstado }, headers: { 'Prefer': 'return=representation' } }).then(function(r) {
     if (!r.ok) throw new Error('Error ' + r.status);
     return r.json();
   }).then(function(data) {
     var actualizado = Array.isArray(data) ? data[0] : data;
-    // actualizar en memoria
     for (var i = 0; i < pedidos.length; i++) {
       if (String(pedidos[i].id) === String(pedidoSeleccionado.id)) {
         pedidos[i].estado = nuevoEstado;
@@ -452,25 +477,23 @@ function marcarEstado(nuevoEstado) {
     }
     pedidoSeleccionado.estado = nuevoEstado;
     if (actualizado && actualizado.estado) pedidoSeleccionado.estado = actualizado.estado;
-    showToast('Estado actualizado a: ' + nuevoEstado, 'ok');
-    cerrarModal();
+    showToast('Estado actualizado: ' + nuevoEstado, 'ok');
+    volverPedidos();
     renderPedidos();
   }).catch(function(e) {
     showToast('Error: ' + (e.message || e), 'error');
-    var btns2 = document.querySelectorAll('.btn-blue, .btn-green');
+    var btns2 = document.querySelectorAll('.detail-btn');
     for (var i = 0; i < btns2.length; i++) { btns2[i].disabled = false; }
   });
 }
 
-function cerrarModal() {
-  document.getElementById('modalBg').className = 'modal-bg';
+function volverStock() {
+  document.getElementById('detailStock').className = 'detail-view';
+  document.getElementById('detailStock').innerHTML = '';
+  document.getElementById('listStock').style.display = 'block';
+  document.getElementById('searchWrapStock').style.display = 'block';
   productoEditando = null;
-  pedidoSeleccionado = null;
 }
-
-document.getElementById('modalBg').onclick = function(e) {
-  if (e.target === this) cerrarModal();
-};
 
 /* Init */
 document.getElementById('searchStock').oninput = filtrarStock;
