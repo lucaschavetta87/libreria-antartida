@@ -252,7 +252,7 @@ export default function VentasMayoristas({ stock, setStock, ventas, setVentas, d
     const nuevoCarritoAjustado = carritoMayoristaConPrecios.map(item => {
       return {
         ...item,
-        precio_venta: Math.round(item.precio_venta * factor),
+        precio_venta: Math.round((item.precio_venta || 0) * factor),
         precioModificado: true 
       };
     });
@@ -586,6 +586,7 @@ export default function VentasMayoristas({ stock, setStock, ventas, setVentas, d
       variedad_nombre: it.variedad_nombre || null,
       imagen: it.imagen || null,
       precio_original_mayorista: it.precio_original_mayorista || it.precio_venta || 0,
+      precio_venta: it.precio_venta || it.precio_original_mayorista || 0,
       precio_costo: it.precio_costo || 0,
       unidades: it.unidades || 1,
       precioModificado: true,
@@ -1027,7 +1028,7 @@ export default function VentasMayoristas({ stock, setStock, ventas, setVentas, d
                         <span>Precio:</span>
                         <input
                           type="number"
-                          value={Math.round(item.precio_venta)}
+                          value={Math.round(item.precio_venta || item.precio_original_mayorista || 0)}
                           onChange={e => manejarCambioPrecioInput(clave, e.target.value)}
                           style={{
                             ...inputStyle, width: '95px', padding: '4px 8px',

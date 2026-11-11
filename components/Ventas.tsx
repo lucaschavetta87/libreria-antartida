@@ -250,7 +250,7 @@ export default function Ventas({ stock, setStock, ventas, setVentas, darkMode = 
     const nuevoCarritoAjustado = carritoConPreciosVivos.map(item => {
       return {
         ...item,
-        precio_venta: Math.round(item.precio_venta * factor),
+        precio_venta: Math.round((item.precio_venta || 0) * factor),
         precioModificado: true 
       };
     });
@@ -543,6 +543,7 @@ export default function Ventas({ stock, setStock, ventas, setVentas, darkMode = 
       variedad_nombre: it.variedad_nombre || null,
       imagen: it.imagen || null,
       precio_original_minorista: it.precio_original_minorista || it.precio_venta || 0,
+      precio_venta: it.precio_venta || it.precio_original_minorista || 0,
       unidades: it.unidades || 1,
       precioModificado: true,
       titulo_manual: it.titulo_manual || null
@@ -1040,7 +1041,7 @@ export default function Ventas({ stock, setStock, ventas, setVentas, darkMode = 
                         <span>Precio unitario:</span>
                         <input 
                           type="number" 
-                          value={Math.round(item.precio_venta)} 
+                          value={Math.round(item.precio_venta || item.precio_original_minorista || 0)} 
                           onChange={e => manejarCambioPrecioInput(clave, e.target.value)}
                           style={{
                             ...inputStyle, width: '95px', padding: '4px 8px',
