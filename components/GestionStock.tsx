@@ -755,7 +755,7 @@ function ModalImportarExcel({ isOpen, onClose, categorias, stock, setStock, dark
   );
 }
 
-function ModalDetalle({ item, darkMode, onClose, onEdit, onDelete, obtenerLabelCategoria, onAgregarAlCarrito, onCodigoChange }: any) {
+function ModalDetalle({ item, darkMode, onClose, onEdit, onDelete, obtenerLabelCategoria, onAgregarAlCarrito, onCodigoChange, onAjustarPrecio }: any) {
   const toast = useToast();
   const [variedadSeleccionada, setVariedadSeleccionada] = useState<string | null>(null);
   const [cantidad, setCantidad] = useState<number>(1);
@@ -802,6 +802,12 @@ function ModalDetalle({ item, darkMode, onClose, onEdit, onDelete, obtenerLabelC
     else { setEditandoCodigo(false); setErrorCodigo(''); }
   };
 
+  const aplicarPorcentajePrecios = async (porcentaje: number) => {
+    if (onAjustarPrecio) {
+      await onAjustarPrecio(item, porcentaje);
+    }
+  };
+
   const theme = {
     card: darkMode ? '#1e293b' : '#ffffff',
     bg: darkMode ? '#0f172a' : '#f8fafc',
@@ -837,6 +843,36 @@ function ModalDetalle({ item, darkMode, onClose, onEdit, onDelete, obtenerLabelC
             </span>
           </div>
           <h2 style={{ margin: '4px 0 10px 0', color: theme.text, fontSize: '1.3rem', fontWeight: '800', lineHeight: 1.3 }}>{item.nombre}</h2>
+          {/* Ajuste porcentual de precios (minorista y mayorista) */}
+          <div style={{ marginBottom: '18px', padding: '12px 14px', borderRadius: '14px', backgroundColor: theme.bg, border: `1px solid ${theme.border}` }}>
+            <div style={{ fontSize: '0.72rem', color: theme.subtext, fontWeight: 700, marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              Ajuste porcentual de precios (minorista y mayorista)
+            </div>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <input
+                type="number"
+                step="any"
+                placeholder="Ej: 5 o -3"
+                id="porcentajeAjuste"
+                style={{ flex: 1, padding: '10px 12px', borderRadius: '10px', border: `1px solid ${theme.border}`, backgroundColor: darkMode ? '#1e293b' : '#ffffff', color: theme.text, fontSize: '1rem', outline: 'none', minWidth: 0 }}
+              />
+              <span style={{ fontSize: '0.85rem', color: theme.subtext, fontWeight: 700 }}>%</span>
+              <button
+                onClick={() => {
+                  const input = document.getElementById('porcentajeAjuste') as HTMLInputElement;
+                  const pct = Number(input?.value);
+                  if (Number.isFinite(pct) && pct !== 0) aplicarPorcentajePrecios(pct);
+                  else toast.avisar('Ingresá un porcentaje válido (ej: 5 o -3)', 'alerta');
+                }}
+                style={{ padding: '10px 16px', borderRadius: '10px', border: 'none', backgroundColor: '#8b5cf6', color: '#fff', fontWeight: 700, cursor: 'pointer', fontSize: '0.9rem', whiteSpace: 'nowrap' }}
+              >
+                Aplicar
+              </button>
+            </div>
+            <div style={{ fontSize: '0.7rem', color: theme.subtext, marginTop: '6px' }}>
+              Mayorista actual: ${Number(item.precio_mayorista || 0).toLocaleString('es-AR')} · Minorista actual: ${Number(item.precio_minorista || 0).toLocaleString('es-AR')}
+            </div>
+          </div>
           <div style={{ marginBottom: '18px' }}>
             <div style={{ fontSize: '0.72rem', color: theme.subtext, fontWeight: 700, marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
               Código de barras
@@ -967,6 +1003,7 @@ function VariedadesEditor({ variedades, onChange, darkMode, subirImagen }: any) 
   const toast = useToast();
   const [subiendoId, setSubiendoId] = useState<string | null>(null);
   const [textoComas, setTextoComas] = useState('');
+  const [busquedaVariedad, setBusquedaVariedad] = useState('');
 
   const t = {
     text: darkMode ? '#f8fafc' : '#0f172a',
@@ -1022,7 +1059,22 @@ function VariedadesEditor({ variedades, onChange, darkMode, subirImagen }: any) 
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         {variedades.length === 0 && <div style={{ fontSize: '0.85rem', color: t.subtext }}>Este producto no tiene variedades aún.</div>}
-        {variedades.map((v: Variedad) => (
+        {variedades.length > 0 && (
+          <input
+            type="text"
+            placeholder="🔍 Buscar variedad por nombre o código..."
+            value={busquedaVariedad}
+            onChange={e => setBusquedaVariedad(e.target.value)}
+            style={{ ...campo, width: '100%', marginBottom: '8px' }}
+          />
+        )}
+        {variedades
+          .filter((v: Variedad) => {
+            const term = busquedaVariedad.trim().toLowerCase();
+            if (!term) return true;
+            return String(v.nombre || '').toLowerCase().includes(term) || String(v.codigo || '').toLowerCase().includes(term);
+          })
+          .map((v: Variedad) => (
           <div key={v.id} style={{ padding: '8px', borderRadius: '10px', backgroundColor: t.row, border: `1px solid ${t.border}` }}>
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
               <label title="Elegir foto específica (opcional)" style={{ width: '46px', height: '46px', flexShrink: 0, borderRadius: '10px', overflow: 'hidden', border: `1px dashed ${t.subtext}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '18px' }}>
@@ -2175,6 +2227,21 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
     }
   };
 
+  const ajustarPrecioPorcentaje = async (item: any, porcentaje: number) => {
+    const factor = 1 + porcentaje / 100;
+    const nuevoMayorista = Math.round((item.precio_mayorista || 0) * factor);
+    const nuevoMinorista = Math.round((item.precio_minorista || 0) * factor);
+    try {
+      const { error } = await supabase.from('stock').update({ precio_mayorista: nuevoMayorista, precio_minorista: nuevoMinorista }).eq('id', item.id);
+      if (error) throw error;
+      setStock((prev: any[]) => (prev || []).map(p => p.id === item.id ? { ...p, precio_mayorista: nuevoMayorista, precio_minorista: nuevoMinorista } : p));
+      setProductoSeleccionado((prev: any) => (prev && prev.id === item.id ? { ...prev, precio_mayorista: nuevoMayorista, precio_minorista: nuevoMinorista } : prev));
+      toast.exito(`Precios ajustados ${porcentaje > 0 ? '+' : ''}${porcentaje}%`);
+    } catch (err: any) {
+      toast.error('Error: ' + (err?.message || err));
+    }
+  };
+
   const productosDeRuta = (cat: string, sub: string | null, subsub: string | null = null) =>
     (stock || []).filter((p: any) => {
       if (String(p.categoria || '').toLowerCase() !== cat) return false;
@@ -2865,7 +2932,7 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', position: 'relative', width: '100%' }}>
-      {productoSeleccionado && <ModalDetalle item={productoSeleccionado} darkMode={darkMode} onClose={() => setProductoSeleccionado(null)} onEdit={activarEdicion} onDelete={borrarItem} obtenerLabelCategoria={obtenerLabelCategoria} onCodigoChange={actualizarCodigoProducto} />}
+      {productoSeleccionado && <ModalDetalle item={productoSeleccionado} darkMode={darkMode} onClose={() => setProductoSeleccionado(null)} onEdit={activarEdicion} onDelete={borrarItem} obtenerLabelCategoria={obtenerLabelCategoria} onCodigoChange={actualizarCodigoProducto} onAjustarPrecio={ajustarPrecioPorcentaje} />}
       {mostrarModalCategorias && <ModalCategorias categorias={categorias} darkMode={darkMode} onClose={() => setMostrarModalCategorias(false)} crearCategoria={crearCategoria} actualizarCategoria={actualizarCategoria} eliminarCategoria={eliminarCategoria} />}
 
       <ModalImportarExcel isOpen={mostrarModalImportar} onClose={() => setMostrarModalImportar(false)} categorias={categorias} stock={stock} setStock={setStock} darkMode={darkMode} setSel={setSel} />

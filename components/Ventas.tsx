@@ -41,6 +41,7 @@ export default function Ventas({ stock, setStock, ventas, setVentas, darkMode = 
   const [variedadElegidaPorProducto, setVariedadElegidaPorProducto] = useState<Record<string, string>>({});
   const [ticketFinal, setTicketFinal] = useState<any>(null);
   const [verHistorial, setVerHistorial] = useState(false);
+  const [ventaEditando, setVentaEditando] = useState<any>(null);
   
   const [descuento, setDescuento] = useState(0);
   const [descuentoEfectivo, setDescuentoEfectivo] = useState(0);
@@ -351,7 +352,7 @@ export default function Ventas({ stock, setStock, ventas, setVentas, darkMode = 
       if (existe) {
         return prevCarrito.map(item => claveCarrito(item) === clave ? { ...item, unidades: item.unidades + cantidad } : item);
       }
-      return [...prevCarrito, nuevoItem];
+      return [nuevoItem, ...prevCarrito];
     });
     if (variedadObj) setVariedadElegidaPorProducto(prev => ({ ...prev, [producto.id]: variedadObj.id }));
     setBusqueda('');
@@ -492,9 +493,10 @@ export default function Ventas({ stock, setStock, ventas, setVentas, darkMode = 
     if (carrito.length === 0) return;
     try {
       const finalTotal = totalConDescuento();
+      const idVenta = ventaEditando ? ventaEditando.id : Date.now();
       const nuevaVenta = {
-        id: Date.now(),
-        fecha: new Date().toLocaleString('es-AR'),
+        id: idVenta,
+        fecha: ventaEditando ? ventaEditando.fecha : new Date().toLocaleString('es-AR'),
         items: carritoConPreciosVivos,
         subtotal: subtotalCarrito(),
         descuento,
@@ -504,14 +506,19 @@ export default function Ventas({ stock, setStock, ventas, setVentas, darkMode = 
         metodo_pago: metodoPago,
         cliente_id: null,
         cliente_nombre: 'Venta Minorista Mostrador',
-        // Se removió "tipo: 'minorista'" para evitar el rechazo de Supabase
         estado: 'completada'
       };
-      
-      const { error } = await supabase.from('ventas').insert([nuevaVenta]);
-      if (error) throw error;
 
-      setVentas([nuevaVenta, ...ventas]);
+      if (ventaEditando) {
+        const { error } = await supabase.from('ventas').update(nuevaVenta).eq('id', ventaEditando.id);
+        if (error) throw error;
+        setVentas((prev: any[]) => prev.map(v => v.id === ventaEditando.id ? nuevaVenta : v));
+      } else {
+        const { error } = await supabase.from('ventas').insert([nuevaVenta]);
+        if (error) throw error;
+        setVentas([nuevaVenta, ...ventas]);
+      }
+
       setTicketFinal(nuevaVenta);
       imprimirTicketVenta({ ...nuevaVenta, vuelto: metodoPago === 'Efectivo' && Number(montoEntregado) > finalTotal ? Number(montoEntregado) - finalTotal : 0 });
       limpiarCarritoPersistente();
@@ -520,7 +527,47 @@ export default function Ventas({ stock, setStock, ventas, setVentas, darkMode = 
       setMontoEntregado('');
       setMetodoPago('Efectivo');
       setListaSeleccionada('precio_minorista');
+      if (ventaEditando) {
+        toast.avisar('Venta actualizada', 'exito');
+        setVentaEditando(null);
+      }
     } catch (e: any) { toast.error("Error al registrar venta minorista: " + e.message); }
+  };
+
+  const iniciarEdicionVenta = (v: any) => {
+    if (!v) return;
+    const items = (Array.isArray(v.items) ? v.items : []).map((it: any) => ({
+      id: it.id,
+      nombre: it.nombre,
+      variedad_id: it.variedad_id || null,
+      variedad_nombre: it.variedad_nombre || null,
+      imagen: it.imagen || null,
+      precio_original_minorista: it.precio_original_minorista || it.precio_venta || 0,
+      unidades: it.unidades || 1,
+      precioModificado: true,
+      titulo_manual: it.titulo_manual || null
+    }));
+    setCarrito(items);
+    setDescuento(Number(v.descuento) || 0);
+    setDescuentoEfectivo(Number(v.descuento_efectivo) || 0);
+    setMetodoPago(v.metodo_pago || 'Efectivo');
+    setMontoEntregado(v.monto_entregado ? String(v.monto_entregado) : '');
+    setVentaEditando(v);
+    setVerHistorial(false);
+    // persist
+    try { localStorage.setItem('ventas_minorista_carrito', JSON.stringify(items)); } catch {}
+    toast.avisar('Editando venta #' + v.id, 'info');
+  };
+
+  const cancelarEdicionVenta = () => {
+    setCarrito([]);
+    setVentaEditando(null);
+    setDescuento(0);
+    setDescuentoEfectivo(0);
+    setMontoEntregado('');
+    setMetodoPago('Efectivo');
+    try { localStorage.removeItem('ventas_minorista_carrito'); } catch {}
+    toast.avisar('Edición cancelada', 'info');
   };
 
   // --- Borradores de venta rápida ---
@@ -663,6 +710,12 @@ export default function Ventas({ stock, setStock, ventas, setVentas, darkMode = 
                       onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = theme.card; e.currentTarget.style.color = theme.text; }}
                     >
                       🖨️ REIMPRIMIR
+                    </button>
+                    <button
+                      onClick={() => iniciarEdicionVenta(v)}
+                      style={{ backgroundColor: theme.card, color: '#f59e0b', border: '1px solid #f59e0b', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.85rem', marginLeft: '8px' }}
+                    >
+                      ✏️ EDITAR
                     </button>
                   </div>
                 </div>
@@ -861,6 +914,12 @@ export default function Ventas({ stock, setStock, ventas, setVentas, darkMode = 
             {/* CARRITO */}
             <div style={cardStyle}>
               <h3 style={{ color: theme.subtext, fontSize: '0.9rem', marginTop: 0 }}>🛒 ARTÍCULOS EN CARRITO</h3>
+              {ventaEditando && (
+                <div style={{ backgroundColor: '#fef3c7', border: '1px solid #f59e0b', borderRadius: '10px', padding: '10px 14px', marginBottom: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                  <span style={{ color: '#92400e', fontWeight: 800, fontSize: '0.85rem' }}>✏️ Editando venta #{ventaEditando.id}</span>
+                  <button onClick={cancelarEdicionVenta} style={{ backgroundColor: '#ef4444', color: '#fff', border: 'none', padding: '6px 14px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.8rem' }}>✕ Cancelar edición</button>
+                </div>
+              )}
 
               {carritoConPreciosVivos.length === 0 && (
                 <div style={{ textAlign: 'center', padding: '30px', color: theme.subtext }}>
@@ -1161,7 +1220,7 @@ export default function Ventas({ stock, setStock, ventas, setVentas, darkMode = 
                   onMouseEnter={(e: any) => { if (carrito.length > 0) e.currentTarget.style.filter = 'brightness(1.12)'; }}
                   onMouseLeave={(e: any) => { e.currentTarget.style.filter = 'none'; }}
                 >
-                  ✅ COMPLETAR OPERACIÓN
+                  {ventaEditando ? '💾 GUARDAR CAMBIOS' : '✅ COMPLETAR OPERACIÓN'}
                 </button>
               </div>
             </div>

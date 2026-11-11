@@ -41,6 +41,7 @@ export default function VentasMayoristas({ stock, setStock, ventas, setVentas, d
   const [variedadElegidaPorProducto, setVariedadElegidaPorProducto] = useState<Record<string, string>>({});
   const [ticketFinal, setTicketFinal] = useState<any>(null);
   const [verHistorial, setVerHistorial] = useState(false);
+  const [ventaEditando, setVentaEditando] = useState<any>(null);
   
   const [metodoPago, setMetodoPago] = useState('Transferencia');
   const [descuentoEfectivo, setDescuentoEfectivo] = useState(0);
@@ -368,7 +369,7 @@ export default function VentasMayoristas({ stock, setStock, ventas, setVentas, d
       if (existe) {
         return prevCarrito.map(item => claveCarrito(item) === clave ? { ...item, unidades: item.unidades + cantidad } : item);
       }
-      return [...prevCarrito, nuevoItem];
+      return [nuevoItem, ...prevCarrito];
     });
     if (variedadObj) setVariedadElegidaPorProducto(prev => ({ ...prev, [producto.id]: variedadObj.id }));
     setBusqueda('');
@@ -522,7 +523,7 @@ export default function VentasMayoristas({ stock, setStock, ventas, setVentas, d
       const clienteNombreStr = infoClienteActivo ? infoClienteActivo.nombre : 'Consumidor Final';
       let saldoEmitido: number | undefined;
 
-      if (metodoPago === 'Cuenta Corriente' && infoClienteActivo) {
+      if (metodoPago === 'Cuenta Corriente' && infoClienteActivo && !ventaEditando) {
         const saldoPrevio = Number(infoClienteActivo.saldo_cc || 0);
         saldoEmitido = saldoPrevio + finalTotal;
         await supabase.from('clientes').update({ saldo_cc: saldoEmitido }).eq('id', Number(clienteSeleccionado));
@@ -532,10 +533,10 @@ export default function VentasMayoristas({ stock, setStock, ventas, setVentas, d
         ));
       }
 
-      // Se eliminó la propiedad "tipo" para evitar errores con el esquema de Supabase
+      const idVenta = ventaEditando ? ventaEditando.id : Date.now();
       const nuevaVenta = { 
-        id: Date.now(), 
-        fecha: new Date().toLocaleString('es-AR'), 
+        id: idVenta, 
+        fecha: ventaEditando ? ventaEditando.fecha : new Date().toLocaleString('es-AR'), 
         items: carritoMayoristaConPrecios, 
         subtotal: subtotalCarrito(), 
         descuento: descuentoGremioCalculado,
@@ -548,10 +549,15 @@ export default function VentasMayoristas({ stock, setStock, ventas, setVentas, d
         estado: 'completada' 
       };
 
-      const { error } = await supabase.from('ventas').insert([nuevaVenta]);
-      if (error) throw error;
-
-      setVentas([nuevaVenta, ...ventas]);
+      if (ventaEditando) {
+        const { error } = await supabase.from('ventas').update(nuevaVenta).eq('id', ventaEditando.id);
+        if (error) throw error;
+        setVentas((prev: any[]) => prev.map(v => v.id === ventaEditando.id ? nuevaVenta : v));
+      } else {
+        const { error } = await supabase.from('ventas').insert([nuevaVenta]);
+        if (error) throw error;
+        setVentas([nuevaVenta, ...ventas]);
+      }
       setTicketFinal(nuevaVenta);
       const vuelto = metodoPago === 'Efectivo' && Number(montoEntregado) > finalTotal ? Number(montoEntregado) - finalTotal : 0;
       // El saldo va solo al papel (nuevaVenta ya está insertada sin columnas de más).
@@ -561,10 +567,54 @@ export default function VentasMayoristas({ stock, setStock, ventas, setVentas, d
       setDescuentoEfectivo(0);
       setMontoEntregado('');
       setMetodoPago('Transferencia');
+      if (ventaEditando) {
+        toast.avisar('Venta actualizada', 'exito');
+        setVentaEditando(null);
+      }
       if (buscadorRef.current) buscadorRef.current.focus();
     } catch (error: any) {
       toast.error("Error al procesar remito: " + error.message);
     }
+  };
+
+  const iniciarEdicionVenta = (v: any) => {
+    if (!v) return;
+    const items = (Array.isArray(v.items) ? v.items : []).map((it: any) => ({
+      id: it.id,
+      nombre: it.nombre,
+      variedad_id: it.variedad_id || null,
+      variedad_nombre: it.variedad_nombre || null,
+      imagen: it.imagen || null,
+      precio_original_mayorista: it.precio_original_mayorista || it.precio_venta || 0,
+      precio_costo: it.precio_costo || 0,
+      unidades: it.unidades || 1,
+      precioModificado: true,
+      titulo_manual: it.titulo_manual || null
+    }));
+    setCarrito(items);
+    if (v.cliente_id) {
+      setClienteSeleccionado(String(v.cliente_id));
+    } else {
+      setClienteSeleccionado('');
+    }
+    setDescuentoEfectivo(Number(v.descuento_efectivo) || 0);
+    setMetodoPago(v.metodo_pago || 'Transferencia');
+    setMontoEntregado(v.monto_entregado ? String(v.monto_entregado) : '');
+    setVentaEditando(v);
+    setVerHistorial(false);
+    try { localStorage.setItem('ventas_mayorista_carrito', JSON.stringify(items)); } catch {}
+    toast.avisar('Editando venta #' + v.id, 'info');
+  };
+
+  const cancelarEdicionVenta = () => {
+    setCarrito([]);
+    setVentaEditando(null);
+    setClienteSeleccionado('');
+    setDescuentoEfectivo(0);
+    setMontoEntregado('');
+    setMetodoPago('Transferencia');
+    try { localStorage.removeItem('ventas_mayorista_carrito'); } catch {}
+    toast.avisar('Edición cancelada', 'info');
   };
 
   // --- Borradores de venta rápida ---
@@ -721,6 +771,12 @@ export default function VentasMayoristas({ stock, setStock, ventas, setVentas, d
                     >
                       🖨️ REIMPRIMIR
                     </button>
+                    <button
+                      onClick={() => iniciarEdicionVenta(v)}
+                      style={{ backgroundColor: theme.card, color: '#f59e0b', border: '1px solid #f59e0b', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.85rem', marginLeft: '8px' }}
+                    >
+                      ✏️ EDITAR
+                    </button>
                   </div>
                 </div>
               ))
@@ -867,6 +923,12 @@ export default function VentasMayoristas({ stock, setStock, ventas, setVentas, d
               <h3 style={{ marginBottom: '15px', color: theme.subtext, fontSize: '0.8rem', fontWeight: 'bold', marginTop: 0 }}>
                 🛒 DETALLE DE ARTÍCULOS (PRECIOS MAYORISTAS)
               </h3>
+              {ventaEditando && (
+                <div style={{ backgroundColor: '#f3e8ff', border: '1px solid #8b5cf6', borderRadius: '10px', padding: '10px 14px', marginBottom: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                  <span style={{ color: '#6b21a8', fontWeight: 800, fontSize: '0.85rem' }}>✏️ Editando venta #{ventaEditando.id}</span>
+                  <button onClick={cancelarEdicionVenta} style={{ backgroundColor: '#ef4444', color: '#fff', border: 'none', padding: '6px 14px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.8rem' }}>✕ Cancelar edición</button>
+                </div>
+              )}
 
               {carrito.length === 0 && (
                 <div style={{ textAlign: 'center', padding: '30px', color: theme.subtext }}>
@@ -1187,7 +1249,7 @@ export default function VentasMayoristas({ stock, setStock, ventas, setVentas, d
                   onMouseEnter={(e: any) => { if (carrito.length > 0) e.currentTarget.style.filter = 'brightness(1.12)'; }}
                   onMouseLeave={(e: any) => { e.currentTarget.style.filter = 'none'; }}
                 >
-                  ✅ GENERAR REMITO Y COMPROBANTE
+                  {ventaEditando ? '💾 GUARDAR CAMBIOS' : '✅ GENERAR REMITO Y COMPROBANTE'}
                 </button>
               </div>
             </div>
