@@ -862,12 +862,12 @@ function ModalDetalle({ item, darkMode, onClose, onEdit, onDelete, obtenerLabelC
       '@page { margin: 5mm; size: A4; }' +
       'body { font-family: Arial, sans-serif; margin: 0; padding: 5mm; }' +
       '.contenedor { display: flex; flex-wrap: wrap; gap: 4mm; justify-content: center; }' +
-      '.etiqueta { width: ' + ancho + 'mm; height: ' + alto + 'mm; border: 1px dashed #ccc; padding: 3mm; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; overflow: hidden; page-break-inside: avoid; }' +
-      '.nombre { font-size: 9px; font-weight: 700; margin-bottom: 2mm; line-height: 1.1; max-height: 12mm; overflow: hidden; }' +
-      '.barcode { margin: 2mm 0; }' +
+      '.etiqueta { width: ' + ancho + 'mm; height: ' + alto + 'mm; border: 1px dashed #ccc; padding: 2mm; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; overflow: hidden; page-break-inside: avoid; }' +
+      '.nombre { font-size: 8px; font-weight: 700; margin-bottom: 1mm; line-height: 1.2; max-height: 16mm; overflow: hidden; word-break: break-word; overflow-wrap: break-word; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }' +
+      '.barcode { margin: 1mm 0; max-width: 100%; }' +
       '.barcode svg { max-width: 100%; height: auto; }' +
-      '.barcode-text { font-family: monospace; font-size: 9px; margin-top: 1mm; }' +
-      '.precio { font-size: 9px; font-weight: 700; margin-top: 1mm; }' +
+      '.barcode-text { font-family: monospace; font-size: 8px; margin-top: 1mm; }' +
+      '.precio { font-size: 8px; font-weight: 700; margin-top: 0.5mm; }' +
       '@media print { body { margin: 0; } .contenedor { gap: 2mm; } }' +
       '</style></head><body>' +
       '<div class="contenedor">' + etiquetas + '</div>' +
