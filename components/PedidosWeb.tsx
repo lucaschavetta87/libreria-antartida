@@ -550,26 +550,26 @@ export default function PedidosWeb({ darkMode = true, vendedorActual = '', vende
       doc.text("DATOS DEL CLIENTE", 20, 52);
       
       doc.setFont("helvetica", "normal");
-      doc.text(`Nombre: ${pedido.nombre}`, 20, 60);
-      doc.text(`Teléfono: ${pedido.telefono}`, 20, 67);
+      doc.text(`Nombre: ${pedido.nombre}`, 10, 60);
+      doc.text(`Teléfono: ${pedido.telefono}`, 10, 67);
       
-      doc.text(`Entrega: ${pedido.metodo_envio === 'envio' ? 'Envío a Domicilio' : 'Retiro en Local'}`, 20, 74);
+      doc.text(`Entrega: ${pedido.metodo_envio === 'envio' ? 'Envío a Domicilio' : 'Retiro en Local'}`, 10, 74);
       let yDatos = 81;
       if (pedido.metodo_envio === 'envio') {
-        doc.text(`Dirección: ${pedido.direccion}`, 20, yDatos);
+        doc.text(`Dirección: ${pedido.direccion}`, 10, yDatos);
         yDatos += 7;
       }
       if (vendedor) {
-        doc.text(`Vendedor: ${vendedor}`, 20, yDatos);
+        doc.text(`Vendedor: ${vendedor}`, 10, yDatos);
         yDatos += 7;
       }
 
       let startY = yDatos + 4;
-      doc.line(20, startY, 190, startY);
+      doc.line(10, startY, 200, startY);
       
       startY += 10;
       doc.setFont("helvetica", "bold");
-      doc.text("DETALLE DEL PEDIDO", 20, startY);
+      doc.text("DETALLE DEL PEDIDO", 10, startY);
       
       startY += 10;
       doc.setFont("helvetica", "normal");
@@ -580,53 +580,130 @@ export default function PedidosWeb({ darkMode = true, vendedorActual = '', vende
         const precioProd = precioItem(item);
 
         const nombreCompleto = nombreCompletoItem(item);
-        const nombreTruncado = nombreCompleto.length > 42 ? nombreCompleto.substring(0, 39) + "..." : nombreCompleto;
+        const nombreTruncado = nombreCompleto.length > 52 ? nombreCompleto.substring(0, 49) + "..." : nombreCompleto;
 
         if (env === 0) {
           doc.setTextColor(148, 163, 184);
-          doc.text(`0x  ${nombreTruncado}  (pidió ${ped})`, 20, startY);
-          doc.text("NO ENVIADO", 190, startY, { align: 'right' });
+          doc.text(`0x  ${nombreTruncado}  (pidió ${ped})`, 10, startY);
+          doc.text("NO ENVIADO", 200, startY, { align: 'right' });
         } else {
           doc.setTextColor(15, 23, 42);
-          doc.text(`${env}x  ${nombreTruncado}${env < ped ? `  (pidió ${ped})` : ''}`, 20, startY);
-          doc.text(`$ ${(precioProd * env).toLocaleString('es-AR')}`, 190, startY, { align: 'right' });
+          doc.text(`${env}x  ${nombreTruncado}${env < ped ? `  (pidió ${ped})` : ''}`, 10, startY);
+          doc.text(`$ ${(precioProd * env).toLocaleString('es-AR')}`, 200, startY, { align: 'right' });
         }
-        startY += 8;
+        startY += 6;
 
         if (env < ped && item.motivo) {
           doc.setFontSize(9);
           doc.setTextColor(120, 130, 145);
-          doc.text(`   Motivo: ${motivoLabel(item.motivo)}${item.nota ? ' - ' + item.nota : ''}`, 20, startY - 2);
-          doc.setFontSize(11);
-          startY += 4;
+          doc.text(`   Motivo: ${motivoLabel(item.motivo)}${item.nota ? ' - ' + item.nota : ''}`, 10, startY - 2);
+          doc.setFontSize(10);
+          startY += 3;
         }
         
-        if (startY > 270) {
+        if (startY > 280) {
           doc.addPage();
-          startY = 20;
+          startY = 15;
         }
       });
 
       doc.setTextColor(15, 23, 42);
-      startY += 5;
-      doc.line(20, startY, 190, startY);
-      startY += 10;
+      startY += 4;
+      doc.line(10, startY, 200, startY);
+      startY += 8;
       if (hayAjustes) {
         doc.setFont("helvetica", "normal");
-        doc.setFontSize(11);
-        doc.text(`Total del pedido original: $ ${Number(pedido.total).toLocaleString('es-AR')}`, 190, startY, { align: 'right' });
-        startY += 9;
+        doc.setFontSize(10);
+        doc.text(`Total del pedido original: $ ${Number(pedido.total).toLocaleString('es-AR')}`, 200, startY, { align: 'right' });
+        startY += 7;
       }
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(14);
-      doc.text(hayAjustes ? "TOTAL A PAGAR:" : "TOTAL:", 120, startY);
-      doc.text(`$ ${totalFinal.toLocaleString('es-AR')}`, 190, startY, { align: 'right' });
+      doc.setFontSize(13);
+      doc.text(hayAjustes ? "TOTAL A PAGAR:" : "TOTAL:", 10, startY);
+      doc.text(`$ ${totalFinal.toLocaleString('es-AR')}`, 200, startY, { align: 'right' });
 
       doc.save(`Pedido_${pedido.id}_${pedido.nombre.replace(/\s+/g, '_')}.pdf`);
     } catch (error) {
       console.error(error);
       toast.error("Error al generar el PDF.");
     }
+  };
+
+  const imprimirGuia = (pedido: Pedido) => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+    const fecha = new Date(pedido.created_at).toLocaleDateString('es-AR', { day: '2-digit', month: 'long', year: 'numeric' });
+    const metodoEnvio = pedido.metodo_envio === 'envio' ? 'Envío a Domicilio' : 'Retiro en Local';
+    let html = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8" />
+          <style>
+            @page { margin: 5mm; }
+            * { box-sizing: border-box; }
+            body { font-family: Arial, Helvetica, sans-serif; margin: 0; padding: 5mm; font-size: 13px; color: #000; }
+            .header { text-align: center; margin-bottom: 10mm; }
+            .header h1 { font-size: 24px; font-weight: 900; margin: 0 0 2mm; letter-spacing: 1px; }
+            .header h2 { font-size: 14px; font-weight: 700; color: #64748b; margin: 0; }
+            .divider { border-top: 2px dashed #000; margin: 6mm 0; }
+            .seccion { margin-bottom: 6mm; }
+            .seccion-titulo { font-size: 12px; font-weight: 900; text-transform: uppercase; color: #64748b; margin-bottom: 3mm; letter-spacing: 0.5px; }
+            .fila { display: flex; justify-content: space-between; padding: 2mm 0; font-size: 13px; }
+            .fila .label { font-weight: 700; color: #374151; }
+            .fila .valor { font-weight: 400; text-align: right; max-width: 60%; }
+            .remitente { background: #f3f4f6; padding: 4mm; border-radius: 4mm; margin-bottom: 6mm; }
+            .remitente-titulo { font-size: 10px; font-weight: 900; text-transform: uppercase; color: #6b7280; margin-bottom: 2mm; }
+            .remitente-nombre { font-size: 16px; font-weight: 900; color: #111827; }
+            .destino { border: 2px solid #111827; padding: 4mm; border-radius: 4mm; }
+            .destino-titulo { font-size: 10px; font-weight: 900; text-transform: uppercase; color: #6b7280; margin-bottom: 2mm; }
+            .destino-nombre { font-size: 18px; font-weight: 900; color: #111827; margin-bottom: 2mm; }
+            .destino-dato { font-size: 13px; color: #374151; margin-top: 1mm; }
+            .footer { text-align: center; margin-top: 8mm; font-size: 10px; color: #9ca3af; }
+            @media print { body { margin: 0; } }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>DISTRIBUIDORA INDIA</h1>
+            <h2>GUÍA DE ENVÍO</h2>
+          </div>
+          <div class="divider"></div>
+
+          <div class="remitente">
+            <div class="remitente-titulo">Remitente</div>
+            <div class="remitente-nombre">Distribuidora India</div>
+          </div>
+
+          <div class="destino">
+            <div class="destino-titulo">Destinatario</div>
+            <div class="destino-nombre">${pedido.nombre || '—'}</div>
+            ${pedido.telefono ? `<div class="destino-dato">📞 ${pedido.telefono}</div>` : ''}
+            ${pedido.direccion ? `<div class="destino-dato">📍 ${pedido.direccion}</div>` : ''}
+            <div class="destino-dato">🚚 ${metodoEnvio}</div>
+          </div>
+
+          <div class="divider"></div>
+          <div class="seccion">
+            <div class="fila">
+              <span class="label">Nº de pedido</span>
+              <span class="valor">#${pedido.id}</span>
+            </div>
+            <div class="fila">
+              <span class="label">Fecha</span>
+              <span class="valor">${fecha}</span>
+            </div>
+          </div>
+
+          <div class="footer">
+            Distribuidora India — Guía de envío
+          </div>
+        </body>
+        <script>window.onload = function() { window.print(); window.close(); };<\/script>
+      </html>
+    `;
+    printWindow.document.write(html);
+    printWindow.document.close();
   };
 
   const pedidosFiltrados = pedidos.filter(p => {
@@ -1127,6 +1204,12 @@ export default function PedidosWeb({ darkMode = true, vendedorActual = '', vende
                     style={{ flex: 1, padding: '12px', backgroundColor: theme.primary, color: '#fff', border: 'none', borderRadius: '12px', fontWeight: 800, cursor: 'pointer' }}
                   >
                     📄 Descargar PDF
+                  </button>
+                  <button 
+                    onClick={() => imprimirGuia(pedidoSeleccionado)}
+                    style={{ flex: 1, padding: '12px', backgroundColor: '#6366f1', color: '#fff', border: 'none', borderRadius: '12px', fontWeight: 800, cursor: 'pointer' }}
+                  >
+                    🚚 Imprimir guía
                   </button>
                 </div>
               </div>

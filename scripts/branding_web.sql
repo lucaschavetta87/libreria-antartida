@@ -29,11 +29,13 @@ insert into configuracion_web (id) values ('config') on conflict (id) do nothing
 alter table configuracion_web enable row level security;
 
 -- Politica de lectura publica (la web publica lee sin auth)
+drop policy if exists "lectura_publica_configuracion_web" on configuracion_web;
 create policy "lectura_publica_configuracion_web"
   on configuracion_web for select
   using (true);
 
 -- Politica de escritura (solo usuarios autenticados / anon con permisos del sistema)
+drop policy if exists "escritura_configuracion_web" on configuracion_web;
 create policy "escritura_configuracion_web"
   on configuracion_web for all
   using (true)
