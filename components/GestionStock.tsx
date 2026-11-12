@@ -3245,7 +3245,7 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
           {productoSeleccionado && (
             <div style={{ marginTop: '16px' }}>
               <button onClick={() => setProductoSeleccionado(null)} style={{ marginBottom: '16px', padding: '10px 16px', borderRadius: '10px', border: 'none', backgroundColor: '#3b82f6', color: '#fff', fontWeight: 700, cursor: 'pointer', fontSize: '0.9rem' }}>← Volver al listado</button>
-              <ModalDetalle item={productoSeleccionado} darkMode={darkMode} inline={true} onClose={() => setProductoSeleccionado(null)} onEdit={activarEdicion} onDelete={borrarItem} obtenerLabelCategoria={obtenerLabelCategoria} onCodigoChange={actualizarCodigoProducto} onAjustarPrecio={ajustarPrecioPorcentaje} />
+              <ModalDetalle item={productoSeleccionado} darkMode={darkMode} fullscreen={true} onClose={() => setProductoSeleccionado(null)} onEdit={activarEdicion} onDelete={borrarItem} obtenerLabelCategoria={obtenerLabelCategoria} onCodigoChange={actualizarCodigoProducto} onAjustarPrecio={ajustarPrecioPorcentaje} />
             </div>
           )}
         </div>
