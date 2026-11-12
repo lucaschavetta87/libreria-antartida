@@ -908,7 +908,7 @@ function ModalDetalle({ item, darkMode, onClose, onEdit, onDelete, obtenerLabelC
                 step="any"
                 placeholder="Ej: 5 o -3"
                 id="porcentajeAjuste"
-                style={{ flex: 1, padding: '10px 12px', borderRadius: '10px', border: `1px solid ${theme.border}`, backgroundColor: darkMode ? '#1e293b' : '#ffffff', color: theme.text, fontSize: '1rem', outline: 'none', minWidth: 0 }}
+                style={{ width: '80px', padding: '10px 12px', borderRadius: '10px', border: `1px solid ${theme.border}`, backgroundColor: darkMode ? '#1e293b' : '#ffffff', color: theme.text, fontSize: '1rem', outline: 'none', textAlign: 'center' }}
               />
               <span style={{ fontSize: '0.85rem', color: theme.subtext, fontWeight: 700 }}>%</span>
               <button
