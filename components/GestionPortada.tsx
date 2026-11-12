@@ -382,7 +382,9 @@ export default function GestionPortada({ darkMode, theme, isMobile }: GestionPor
               <div style={{ fontSize: '1.4rem' }}>{t.icon}</div>
               <div style={{ fontWeight: '900', color: theme.text, marginTop: '6px' }}>{t.label}</div>
               <div style={{ fontSize: '0.78rem', color: theme.subtext, marginTop: '3px' }}>
-                {cantidad} {cantidad === 1 ? 'ítem configurado' : 'ítems configurados'}
+                {t.id === 'branding'
+                  ? (branding.tema_activo ? '✅ Activo: ' + branding.tema_activo : 'Sin tema activo')
+                  : `${cantidad} ${cantidad === 1 ? 'ítem configurado' : 'ítems configurados'}`}
               </div>
             </button>
           );
