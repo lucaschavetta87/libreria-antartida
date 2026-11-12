@@ -144,6 +144,12 @@ export default function PedidosWeb({ darkMode = true, vendedorActual = '', vende
   // Ítems del pedido abierto (borrador editable) y control de cambios sin guardar
   const [itemsTrabajo, setItemsTrabajo] = useState<any[]>([]);
   const [hayCambios, setHayCambios] = useState(false);
+  const [vendedorTrabajo, setVendedorTrabajo] = useState('');
+  const [vendedorCobro, setVendedorCobro] = useState('');
+  const [vendedorPorDefecto, setVendedorPorDefecto] = useState(vendedorActual);
+  const [busquedaAgregar, setBusquedaAgregar] = useState('');
+  const [sugerenciasAgregar, setSugerenciasAgregar] = useState<any[]>([]);
+  const [mostrarSugerenciasAgregar, setMostrarSugerenciasAgregar] = useState(false);
   const [guardando, setGuardando] = useState(false);
 
   // Estados para el modal de pago al completar pedido
@@ -156,9 +162,19 @@ export default function PedidosWeb({ darkMode = true, vendedorActual = '', vende
   const [procesandoPago, setProcesandoPago] = useState(false);
 
   // Vendedor que prepara el pedido abierto / vendedor que figura al cobrar
-  const [vendedorTrabajo, setVendedorTrabajo] = useState('');
-  const [vendedorCobro, setVendedorCobro] = useState('');
-  const [vendedorPorDefecto, setVendedorPorDefecto] = useState(vendedorActual);
+  const [stock, setStock] = useState<any[]>([]);
+  const [modoCrear, setModoCrear] = useState(false);
+  const [carritoPedido, setCarritoPedido] = useState<any[]>([]);
+  const [busquedaProducto, setBusquedaProducto] = useState('');
+  const [sugerenciasProducto, setSugerenciasProducto] = useState<any[]>([]);
+  const [mostrarSugerenciasProd, setMostrarSugerenciasProd] = useState(false);
+  const [nombreClienteNuevo, setNombreClienteNuevo] = useState('');
+  const [telefonoNuevo, setTelefonoNuevo] = useState('');
+  const [metodoEnvioNuevo, setMetodoEnvioNuevo] = useState('retiro');
+  const [direccionNuevo, setDireccionNuevo] = useState('');
+  const [vendedorNuevo, setVendedorNuevo] = useState('');
+  const [guardandoPedido, setGuardandoPedido] = useState(false);
+  const [cantidadSeleccionada, setCantidadSeleccionada] = useState(1);
 
   useEffect(() => {
     if (vendedorActual) { setVendedorPorDefecto(vendedorActual); return; }
@@ -167,6 +183,96 @@ export default function PedidosWeb({ darkMode = true, vendedorActual = '', vende
       if (guardado) setVendedorPorDefecto(guardado);
     } catch { /* sin acceso a localStorage */ }
   }, [vendedorActual]);
+
+  // --- Busqueda de productos para armar pedido manual ---
+  const obtenerVariedades = (producto: any): any[] => Array.isArray(producto?.variedades) ? producto.variedades : [];
+  const precioMayorista = (producto: any, variedad: any) => {
+    const v = variedad?.precio_mayorista;
+    if (v !== undefined && v !== null && v !== '') return Number(v);
+    return Number(producto?.precio_mayorista || 0);
+  };
+
+  const buscarProductosPedido = (term: string) => {
+    setBusquedaProducto(term);
+    if (!term.trim()) { setSugerenciasProducto([]); setMostrarSugerenciasProd(false); return; }
+    const tl = term.trim().toLowerCase();
+    const local = stock.filter((s: any) =>
+      (s.codigo && String(s.codigo).toLowerCase() === tl) ||
+      (Array.isArray(s.variedades) && s.variedades.some((v: any) => v.codigo && String(v.codigo).toLowerCase() === tl)) ||
+      String(s.nombre || '').toLowerCase().includes(tl)
+    ).slice(0, 10);
+    setSugerenciasProducto(local);
+    setMostrarSugerenciasProd(true);
+  };
+
+  const agregarProductoAlCarritoPedido = (producto: any, variedadId?: string) => {
+    const variedades = obtenerVariedades(producto);
+    const variedad = variedadId ? variedades.find((v: any) => String(v.id) === String(variedadId)) : null;
+    const precio = precioMayorista(producto, variedad);
+    const item = {
+      producto: { id: producto.id, nombre: producto.nombre, precio: precio, img: producto.imagen_url, categoria: producto.categoria },
+      variedad: variedad ? { id: variedad.id, nombre: variedad.nombre } : null,
+      cantidad: cantidadSeleccionada,
+      cantidad_pedida: cantidadSeleccionada,
+      cantidad_enviada: cantidadSeleccionada,
+      listo: false,
+      motivo: '',
+      nota: ''
+    };
+    setCarritoPedido(prev => {
+      const idx = prev.findIndex((it: any) => it.producto.id === producto.id && String(it.variedad?.id || '') === String(variedad?.id || ''));
+      if (idx >= 0) {
+        const copia = [...prev];
+        copia[idx] = { ...copia[idx], cantidad: copia[idx].cantidad + cantidadSeleccionada, cantidad_pedida: copia[idx].cantidad_pedida + cantidadSeleccionada, cantidad_enviada: copia[idx].cantidad_enviada + cantidadSeleccionada };
+        return copia;
+      }
+      return [...prev, item];
+    });
+    setBusquedaProducto('');
+    setSugerenciasProducto([]);
+    setMostrarSugerenciasProd(false);
+    setCantidadSeleccionada(1);
+  };
+
+  const quitarProductoCarritoPedido = (idx: number) => {
+    setCarritoPedido(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  const totalCarritoPedido = () => carritoPedido.reduce((acc, it) => acc + (it.producto.precio * it.cantidad), 0);
+
+  const guardarPedidoManual = async () => {
+    if (!nombreClienteNuevo.trim()) { toast.avisar('Ingresa el nombre del cliente.', 'alerta'); return; }
+    if (carritoPedido.length === 0) { toast.avisar('Agrega al menos un producto.', 'alerta'); return; }
+    setGuardandoPedido(true);
+    try {
+      const productosConVendedor = carritoPedido.map(it => ({ ...it, vendedor: vendedorNuevo || null }));
+      const { error } = await supabase.from('pedidos_web').insert([{
+        nombre: nombreClienteNuevo.trim(),
+        telefono: telefonoNuevo.trim(),
+        metodo_envio: metodoEnvioNuevo,
+        direccion: metodoEnvioNuevo === 'envio' ? direccionNuevo.trim() : 'Retiro en local',
+        productos: productosConVendedor,
+        total: totalCarritoPedido(),
+        estado: 'pendiente',
+        vendedor: vendedorNuevo || null
+      }]);
+      if (error) throw error;
+      toast.avisar('Pedido creado correctamente.', 'exito');
+      setModoCrear(false);
+      setCarritoPedido([]);
+      setNombreClienteNuevo('');
+      setTelefonoNuevo('');
+      setMetodoEnvioNuevo('retiro');
+      setDireccionNuevo('');
+      setVendedorNuevo('');
+      setBusquedaProducto('');
+      await cargarPedidosYClientes();
+    } catch (err: any) {
+      toast.error('Error al crear pedido: ' + (err?.message || err));
+    } finally {
+      setGuardandoPedido(false);
+    }
+  };
 
   const theme = {
     bg: darkMode ? '#0f172a' : '#f8fafc',
@@ -197,6 +303,15 @@ export default function PedidosWeb({ darkMode = true, vendedorActual = '', vende
 
       if (!clientesError && clientesData) {
         setClientesLista(clientesData);
+      }
+
+      // Stock para armar pedidos manuales
+      const { data: stockData, error: stockError } = await supabase
+        .from('stock')
+        .select('id, nombre, codigo, precio_mayorista, precio_costo, imagen_url, variedades, sin_stock')
+        .order('nombre', { ascending: true });
+      if (!stockError && stockData) {
+        setStock(stockData);
       }
     } catch (err: any) {
       console.error("Error al cargar datos:", err.message);
@@ -291,6 +406,39 @@ export default function PedidosWeb({ darkMode = true, vendedorActual = '', vende
   const marcarTodosListos = () => {
     setItemsTrabajo(prev => prev.map(it => (cantEnviada(it) > 0 ? { ...it, listo: true } : it)));
     setHayCambios(true);
+  };
+
+  const buscarParaAgregar = (term: string) => {
+    setBusquedaAgregar(term);
+    if (!term.trim()) { setSugerenciasAgregar([]); setMostrarSugerenciasAgregar(false); return; }
+    const tl = term.trim().toLowerCase();
+    const local = stock.filter((s: any) =>
+      (s.codigo && String(s.codigo).toLowerCase() === tl) ||
+      (Array.isArray(s.variedades) && s.variedades.some((v: any) => v.codigo && String(v.codigo).toLowerCase() === tl)) ||
+      String(s.nombre || '').toLowerCase().includes(tl)
+    ).slice(0, 8);
+    setSugerenciasAgregar(local);
+    setMostrarSugerenciasAgregar(true);
+  };
+
+  const agregarProductoAPedido = (producto: any) => {
+    const precio = Number(producto.precio_mayorista || producto.precio_minorista || 0);
+    const nuevoItem = {
+      producto: { id: producto.id, nombre: producto.nombre, precio: precio, img: producto.imagen_url, categoria: producto.categoria },
+      variedad: null,
+      cantidad: 1,
+      cantidad_pedida: 1,
+      cantidad_enviada: 1,
+      listo: false,
+      motivo: '',
+      nota: ''
+    };
+    setItemsTrabajo(prev => [...prev, nuevoItem]);
+    setHayCambios(true);
+    setBusquedaAgregar('');
+    setSugerenciasAgregar([]);
+    setMostrarSugerenciasAgregar(false);
+    toast.avisar('Producto agregado al pedido.', 'info');
   };
 
   const guardarProgreso = async (forzarPreparando = false) => {
@@ -911,6 +1059,12 @@ export default function PedidosWeb({ darkMode = true, vendedorActual = '', vende
         <p style={{ margin: 0, fontSize: '0.85rem', color: theme.subtext }}>Pedidos recibidos desde la web: prepará, cobrá y sincronizá el stock</p>
         
         <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+          <button
+            onClick={() => setModoCrear(!modoCrear)}
+            style={{ padding: '12px 18px', borderRadius: '12px', border: 'none', backgroundColor: '#10b981', color: '#fff', fontWeight: 800, cursor: 'pointer', fontSize: '0.95rem' }}
+          >
+            {modoCrear ? '✕ Cancelar' : '➕ Generar Pedido'}
+          </button>
           <input 
             type="text" 
             placeholder="🔍 Buscar cliente o #ID..." 
@@ -963,7 +1117,147 @@ export default function PedidosWeb({ darkMode = true, vendedorActual = '', vende
         </div>
       </div>
 
-      {cargando ? (
+      {modoCrear ? (
+        <div style={{ backgroundColor: theme.card, borderRadius: '20px', border: `1px solid ${theme.border}`, padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <h3 style={{ margin: 0, color: theme.text, fontWeight: 800, fontSize: '1.2rem' }}>➕ Generar Pedido Manual</h3>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div>
+              <label style={{ fontSize: '0.8rem', fontWeight: 700, color: theme.subtext, display: 'block', marginBottom: '4px' }}>Cliente (nombre)</label>
+              <input
+                type="text"
+                value={nombreClienteNuevo}
+                onChange={(e) => setNombreClienteNuevo(e.target.value)}
+                placeholder="Nombre del cliente"
+                style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: theme.bg, color: theme.text, fontSize: '0.95rem' }}
+              />
+            </div>
+            <div>
+              <label style={{ fontSize: '0.8rem', fontWeight: 700, color: theme.subtext, display: 'block', marginBottom: '4px' }}>Teléfono</label>
+              <input
+                type="text"
+                value={telefonoNuevo}
+                onChange={(e) => setTelefonoNuevo(e.target.value)}
+                placeholder="Teléfono"
+                style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: theme.bg, color: theme.text, fontSize: '0.95rem' }}
+              />
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div>
+              <label style={{ fontSize: '0.8rem', fontWeight: 700, color: theme.subtext, display: 'block', marginBottom: '4px' }}>Método de envío</label>
+              <select
+                value={metodoEnvioNuevo}
+                onChange={(e) => setMetodoEnvioNuevo(e.target.value)}
+                style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: theme.bg, color: theme.text, fontSize: '0.95rem' }}
+              >
+                <option value="retiro">Retiro en local</option>
+                <option value="envio">Envío a domicilio</option>
+              </select>
+            </div>
+            <div>
+              <label style={{ fontSize: '0.8rem', fontWeight: 700, color: theme.subtext, display: 'block', marginBottom: '4px' }}>Vendedor</label>
+              <input
+                type="text"
+                value={vendedorNuevo}
+                onChange={(e) => setVendedorNuevo(e.target.value)}
+                placeholder="Vendedor asignado"
+                list="lista-vendedores"
+                style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: theme.bg, color: theme.text, fontSize: '0.95rem' }}
+              />
+            </div>
+          </div>
+
+          {metodoEnvioNuevo === 'envio' && (
+            <div>
+              <label style={{ fontSize: '0.8rem', fontWeight: 700, color: theme.subtext, display: 'block', marginBottom: '4px' }}>Dirección</label>
+              <input
+                type="text"
+                value={direccionNuevo}
+                onChange={(e) => setDireccionNuevo(e.target.value)}
+                placeholder="Dirección de envío"
+                style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: theme.bg, color: theme.text, fontSize: '0.95rem' }}
+              />
+            </div>
+          )}
+
+          {/* Busqueda de productos */}
+          <div>
+            <label style={{ fontSize: '0.8rem', fontWeight: 700, color: theme.subtext, display: 'block', marginBottom: '4px' }}>Agregar producto</label>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <input
+                type="text"
+                value={busquedaProducto}
+                onChange={(e) => buscarProductosPedido(e.target.value)}
+                placeholder="Buscar por nombre o código (o escanear)..."
+                style={{ flex: 1, padding: '10px 12px', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: theme.bg, color: theme.text, fontSize: '0.95rem' }}
+              />
+              <input
+                type="number"
+                min={1}
+                value={cantidadSeleccionada}
+                onChange={(e) => setCantidadSeleccionada(Math.max(1, Number(e.target.value) || 1))}
+                style={{ width: '60px', padding: '10px 8px', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: theme.bg, color: theme.text, fontSize: '0.95rem', textAlign: 'center' }}
+              />
+            </div>
+            {mostrarSugerenciasProd && sugerenciasProducto.length > 0 && (
+              <div style={{ marginTop: '8px', backgroundColor: theme.bg, border: `1px solid ${theme.border}`, borderRadius: '8px', maxHeight: '200px', overflowY: 'auto' }}>
+                {sugerenciasProducto.map((s: any) => (
+                  <div
+                    key={s.id}
+                    onClick={() => agregarProductoAlCarritoPedido(s)}
+                    style={{ padding: '10px 12px', cursor: 'pointer', borderBottom: `1px solid ${theme.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                  >
+                    <span style={{ fontWeight: 600, fontSize: '0.9rem', color: theme.text }}>{s.nombre}</span>
+                    <span style={{ fontSize: '0.8rem', color: theme.subtext, fontFamily: 'monospace' }}>{s.codigo} · ${Number(s.precio_mayorista || 0).toLocaleString('es-AR')}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Carrito del pedido */}
+          {carritoPedido.length > 0 && (
+            <div>
+              <div style={{ fontSize: '0.8rem', fontWeight: 700, color: theme.subtext, marginBottom: '6px' }}>Productos del pedido ({carritoPedido.length})</div>
+              {carritoPedido.map((it: any, idx: number) => (
+                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', backgroundColor: theme.bg, borderRadius: '8px', marginBottom: '6px', border: `1px solid ${theme.border}` }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 700, fontSize: '0.9rem', color: theme.text }}>{it.producto.nombre}{it.variedad ? ' · ' + it.variedad.nombre : ''}</div>
+                    <div style={{ fontSize: '0.8rem', color: theme.subtext }}>{it.cantidad} x ${Number(it.producto.precio).toLocaleString('es-AR')} = ${Number(it.producto.precio * it.cantidad).toLocaleString('es-AR')}</div>
+                  </div>
+                  <button
+                    onClick={() => quitarProductoCarritoPedido(idx)}
+                    style={{ padding: '6px 10px', borderRadius: '6px', border: '1px solid #ef4444', background: 'transparent', color: '#ef4444', fontWeight: 700, cursor: 'pointer', fontSize: '0.8rem' }}
+                  >
+                    🗑️
+                  </button>
+                </div>
+              ))}
+              <div style={{ textAlign: 'right', fontWeight: 900, fontSize: '1.1rem', color: theme.text, marginTop: '8px' }}>
+                Total: ${totalCarritoPedido().toLocaleString('es-AR')}
+              </div>
+            </div>
+          )}
+
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+            <button
+              onClick={guardarPedidoManual}
+              disabled={guardandoPedido}
+              style={{ flex: 1, padding: '14px', borderRadius: '12px', border: 'none', backgroundColor: '#10b981', color: '#fff', fontWeight: 800, cursor: guardandoPedido ? 'not-allowed' : 'pointer', fontSize: '1rem', opacity: guardandoPedido ? 0.6 : 1, minWidth: '140px' }}
+            >
+              {guardandoPedido ? '⏳ Guardando...' : '💾 Guardar pedido'}
+            </button>
+            <button
+              onClick={() => { setModoCrear(false); setCarritoPedido([]); }}
+              style={{ flex: 1, padding: '14px', borderRadius: '12px', border: `1px solid ${theme.border}`, background: 'transparent', color: theme.text, fontWeight: 700, cursor: 'pointer', fontSize: '1rem', minWidth: '140px' }}
+            >
+              ✕ Cancelar
+            </button>
+          </div>
+        </div>
+      ) : cargando ? (
         <div style={{ textAlign: 'center', padding: '60px', color: theme.subtext, fontSize: '1.1rem', fontWeight: 600 }}>⏳ Cargando pedidos...</div>
       ) : pedidosFiltrados.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '60px', backgroundColor: theme.card, borderRadius: '20px', border: `2px dashed ${theme.border}`, color: theme.subtext, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
@@ -1265,6 +1559,34 @@ export default function PedidosWeb({ darkMode = true, vendedorActual = '', vende
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: editable ? 'none' : '360px', overflowY: editable ? 'visible' : 'auto' }}>
                   {itemsTrabajo.map((item, idx) => renderItem(item, idx, editable))}
                 </div>
+
+                {editable && (
+                  <div style={{ marginTop: '12px' }}>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <input
+                        type="text"
+                        value={busquedaAgregar}
+                        onChange={(e) => buscarParaAgregar(e.target.value)}
+                        placeholder="➕ Agregar producto (buscar por nombre o código)..."
+                        style={{ flex: 1, padding: '10px 12px', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: theme.bg, color: theme.text, fontSize: '0.9rem' }}
+                      />
+                    </div>
+                    {mostrarSugerenciasAgregar && sugerenciasAgregar.length > 0 && (
+                      <div style={{ marginTop: '6px', backgroundColor: theme.bg, border: `1px solid ${theme.border}`, borderRadius: '8px', maxHeight: '180px', overflowY: 'auto' }}>
+                        {sugerenciasAgregar.map((s: any) => (
+                          <div
+                            key={s.id}
+                            onClick={() => agregarProductoAPedido(s)}
+                            style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: `1px solid ${theme.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                          >
+                            <span style={{ fontWeight: 600, fontSize: '0.85rem', color: theme.text }}>{s.nombre}</span>
+                            <span style={{ fontSize: '0.75rem', color: theme.subtext, fontFamily: 'monospace' }}>{s.codigo} · ${Number(s.precio_mayorista || 0).toLocaleString('es-AR')}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {editable && (
                   <button
