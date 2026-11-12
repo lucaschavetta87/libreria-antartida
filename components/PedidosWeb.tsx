@@ -1155,9 +1155,9 @@ export default function PedidosWeb({ darkMode = true, vendedorActual = '', vende
                   }}
                   style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: theme.bg, color: theme.text, fontSize: '0.85rem', marginTop: '4px' }}
                 >
-                  <option value="">— Seleccionar cliente de cuenta corriente —</option>
+                  <option value="" style={{ backgroundColor: theme.bg, color: theme.text }}>— Seleccionar cliente de cuenta corriente —</option>
                   {clientesLista.map((c: any) => (
-                    <option key={c.id} value={c.id}>{c.nombre}{c.telefono ? ' · ' + c.telefono : ''}</option>
+                    <option key={c.id} value={c.id} style={{ backgroundColor: theme.bg, color: theme.text }}>{c.nombre}{c.telefono ? ' · ' + c.telefono : ''}</option>
                   ))}
                 </select>
               )}
@@ -1206,9 +1206,9 @@ export default function PedidosWeb({ darkMode = true, vendedorActual = '', vende
               onChange={(e) => setMetodoPagoNuevo(e.target.value as any)}
               style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: theme.bg, color: theme.text, fontSize: '0.95rem' }}
             >
-              <option value="Efectivo">Efectivo</option>
-              <option value="Transferencia">Transferencia</option>
-              <option value="Cuenta Corriente">Cuenta Corriente</option>
+              <option value="Efectivo" style={{ backgroundColor: theme.bg, color: theme.text }}>Efectivo</option>
+              <option value="Transferencia" style={{ backgroundColor: theme.bg, color: theme.text }}>Transferencia</option>
+              <option value="Cuenta Corriente" style={{ backgroundColor: theme.bg, color: theme.text }}>Cuenta Corriente</option>
             </select>
             {metodoPagoNuevo === 'Cuenta Corriente' && !clienteIdNuevo && (
               <div style={{ fontSize: '0.75rem', color: '#f59e0b', marginTop: '4px', fontWeight: 600 }}>
