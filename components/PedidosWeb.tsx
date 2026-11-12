@@ -175,6 +175,9 @@ export default function PedidosWeb({ darkMode = true, vendedorActual = '', vende
   const [vendedorNuevo, setVendedorNuevo] = useState('');
   const [guardandoPedido, setGuardandoPedido] = useState(false);
   const [cantidadSeleccionada, setCantidadSeleccionada] = useState(1);
+  const [clienteIdNuevo, setClienteIdNuevo] = useState('');
+  const [metodoPagoNuevo, setMetodoPagoNuevo] = useState<'Efectivo' | 'Transferencia' | 'Cuenta Corriente'>('Efectivo');
+  const [variedadSeleccionadaNuevo, setVariedadSeleccionadaNuevo] = useState<string>('');
 
   useEffect(() => {
     if (vendedorActual) { setVendedorPorDefecto(vendedorActual); return; }
@@ -226,7 +229,7 @@ export default function PedidosWeb({ darkMode = true, vendedorActual = '', vende
         copia[idx] = { ...copia[idx], cantidad: copia[idx].cantidad + cantidadSeleccionada, cantidad_pedida: copia[idx].cantidad_pedida + cantidadSeleccionada, cantidad_enviada: copia[idx].cantidad_enviada + cantidadSeleccionada };
         return copia;
       }
-      return [...prev, item];
+      return [item, ...prev];
     });
     setBusquedaProducto('');
     setSugerenciasProducto([]);
@@ -271,6 +274,17 @@ export default function PedidosWeb({ darkMode = true, vendedorActual = '', vende
       toast.error('Error al crear pedido: ' + (err?.message || err));
     } finally {
       setGuardandoPedido(false);
+    }
+  };
+
+  const buscarClientePorNombre = (nombre: string) => {
+    setNombreClienteNuevo(nombre);
+    const coincidencia = clientesLista.find(c => c.nombre?.toLowerCase().trim() === nombre.toLowerCase().trim());
+    if (coincidencia) {
+      setClienteIdNuevo(String(coincidencia.id));
+      if (coincidencia.telefono) setTelefonoNuevo(String(coincidencia.telefono));
+    } else {
+      setClienteIdNuevo('');
     }
   };
 
@@ -1127,10 +1141,26 @@ export default function PedidosWeb({ darkMode = true, vendedorActual = '', vende
               <input
                 type="text"
                 value={nombreClienteNuevo}
-                onChange={(e) => setNombreClienteNuevo(e.target.value)}
-                placeholder="Nombre del cliente"
+                onChange={(e) => buscarClientePorNombre(e.target.value)}
+                placeholder="Nombre del cliente (o seleccionar abajo)"
                 style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: theme.bg, color: theme.text, fontSize: '0.95rem' }}
               />
+              {clientesLista.length > 0 && (
+                <select
+                  value={clienteIdNuevo}
+                  onChange={(e) => {
+                    setClienteIdNuevo(e.target.value);
+                    const c = clientesLista.find(cl => String(cl.id) === String(e.target.value));
+                    if (c) { setNombreClienteNuevo(c.nombre || ''); if (c.telefono) setTelefonoNuevo(String(c.telefono)); }
+                  }}
+                  style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: theme.bg, color: theme.text, fontSize: '0.85rem', marginTop: '4px' }}
+                >
+                  <option value="">— Seleccionar cliente de cuenta corriente —</option>
+                  {clientesLista.map((c: any) => (
+                    <option key={c.id} value={c.id}>{c.nombre}{c.telefono ? ' · ' + c.telefono : ''}</option>
+                  ))}
+                </select>
+              )}
             </div>
             <div>
               <label style={{ fontSize: '0.8rem', fontWeight: 700, color: theme.subtext, display: 'block', marginBottom: '4px' }}>Teléfono</label>
@@ -1169,6 +1199,24 @@ export default function PedidosWeb({ darkMode = true, vendedorActual = '', vende
             </div>
           </div>
 
+          <div>
+            <label style={{ fontSize: '0.8rem', fontWeight: 700, color: theme.subtext, display: 'block', marginBottom: '4px' }}>Forma de pago</label>
+            <select
+              value={metodoPagoNuevo}
+              onChange={(e) => setMetodoPagoNuevo(e.target.value as any)}
+              style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: theme.bg, color: theme.text, fontSize: '0.95rem' }}
+            >
+              <option value="Efectivo">Efectivo</option>
+              <option value="Transferencia">Transferencia</option>
+              <option value="Cuenta Corriente">Cuenta Corriente</option>
+            </select>
+            {metodoPagoNuevo === 'Cuenta Corriente' && !clienteIdNuevo && (
+              <div style={{ fontSize: '0.75rem', color: '#f59e0b', marginTop: '4px', fontWeight: 600 }}>
+                Selecciona un cliente de la lista de arriba para cuenta corriente
+              </div>
+            )}
+          </div>
+
           {metodoEnvioNuevo === 'envio' && (
             <div>
               <label style={{ fontSize: '0.8rem', fontWeight: 700, color: theme.subtext, display: 'block', marginBottom: '4px' }}>Dirección</label>
@@ -1203,16 +1251,44 @@ export default function PedidosWeb({ darkMode = true, vendedorActual = '', vende
             </div>
             {mostrarSugerenciasProd && sugerenciasProducto.length > 0 && (
               <div style={{ marginTop: '8px', backgroundColor: theme.bg, border: `1px solid ${theme.border}`, borderRadius: '8px', maxHeight: '200px', overflowY: 'auto' }}>
-                {sugerenciasProducto.map((s: any) => (
-                  <div
-                    key={s.id}
-                    onClick={() => agregarProductoAlCarritoPedido(s)}
-                    style={{ padding: '10px 12px', cursor: 'pointer', borderBottom: `1px solid ${theme.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-                  >
-                    <span style={{ fontWeight: 600, fontSize: '0.9rem', color: theme.text }}>{s.nombre}</span>
-                    <span style={{ fontSize: '0.8rem', color: theme.subtext, fontFamily: 'monospace' }}>{s.codigo} · ${Number(s.precio_mayorista || 0).toLocaleString('es-AR')}</span>
-                  </div>
-                ))}
+                {sugerenciasProducto.map((s: any) => {
+                  const vars = Array.isArray(s.variedades) ? s.variedades : [];
+                  return (
+                    <div
+                      key={s.id}
+                      style={{ padding: '10px 12px', cursor: 'pointer', borderBottom: `1px solid ${theme.border}`, display: 'flex', alignItems: 'center', gap: '10px' }}
+                    >
+                      {s.imagen_url ? (
+                        <img src={s.imagen_url} alt="" style={{ width: '40px', height: '40px', objectFit: 'contain', borderRadius: '6px', background: '#fff', flexShrink: 0 }} />
+                      ) : (
+                        <div style={{ width: '40px', height: '40px', background: theme.innerBox, borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', flexShrink: 0 }}>📦</div>
+                      )}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 600, fontSize: '0.9rem', color: theme.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.nombre}</div>
+                        <div style={{ fontSize: '0.75rem', color: theme.subtext, fontFamily: 'monospace' }}>{s.codigo} · ${Number(s.precio_mayorista || 0).toLocaleString('es-AR')}</div>
+                        {vars.length > 0 && (
+                          <select
+                            onChange={(e) => { if (e.target.value) agregarProductoAlCarritoPedido(s, e.target.value); }}
+                            onClick={(e) => e.stopPropagation()}
+                            style={{ marginTop: '4px', padding: '4px 6px', borderRadius: '6px', border: `1px solid ${theme.border}`, backgroundColor: theme.bg, color: theme.text, fontSize: '0.8rem', width: '100%' }}
+                            defaultValue=""
+                          >
+                            <option value="">Elegir variedad...</option>
+                            {vars.map((v: any) => (
+                              <option key={v.id} value={v.id}>{v.nombre}{v.codigo ? ' · ' + v.codigo : ''}</option>
+                            ))}
+                          </select>
+                        )}
+                      </div>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); agregarProductoAlCarritoPedido(s); }}
+                        style={{ padding: '6px 10px', borderRadius: '6px', border: 'none', backgroundColor: '#3b82f6', color: '#fff', fontWeight: 700, cursor: 'pointer', fontSize: '0.75rem', flexShrink: 0 }}
+                      >
+                        ➕
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
