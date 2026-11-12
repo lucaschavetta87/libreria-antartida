@@ -18,7 +18,7 @@ interface GestionPortadaProps {
   isMobile: boolean;
 }
 
-type TipoPortada = 'novedad' | 'oferta' | 'banner';
+type TipoPortada = 'novedad' | 'oferta' | 'banner' | 'branding';
 
 interface FilaPortada {
   id: number;
@@ -44,6 +44,7 @@ const TIPOS: { id: TipoPortada; label: string; icon: string; descripcion: string
   { id: 'novedad', label: 'Últimos ingresos', icon: '✨', descripcion: 'Productos que se muestran en el carrusel "Últimos ingresos" de la portada.' },
   { id: 'oferta', label: 'Ofertas', icon: '🔥', descripcion: 'Productos en oferta. Si cargás un precio de oferta, la web lo muestra tachado junto al mayorista.' },
   { id: 'banner', label: 'Imágenes del hero', icon: '🖼️', descripcion: 'Fondos del carrusel principal de la portada. Si no cargás ninguno, se usan los que ya están en la web.' },
+  { id: 'branding', label: 'Branding temático', icon: '🎨', descripcion: 'Activá un tema visual para la web (Navidad, Halloween, Día de la Madre, festividades esotéricas, etc.). Cambia colores, fondo y mensaje de la portada.' },
 ];
 
 const CANTIDAD_POR_PAGINA = 12;
@@ -61,6 +62,8 @@ export default function GestionPortada({ darkMode, theme, isMobile }: GestionPor
   const [subiendoImagen, setSubiendoImagen] = useState(false);
   const [mensaje, setMensaje] = useState<{ texto: string; ok: boolean } | null>(null);
   const [avisoImagen, setAvisoImagen] = useState<string[]>([]);
+  const [branding, setBranding] = useState<{ tema_activo: string | null; mensaje_tema: string; color_primario: string; color_secundario: string; imagen_fondo: string | null; imagen_banner: string | null }>({ tema_activo: null, mensaje_tema: '', color_primario: '#111827', color_secundario: '#ffffff', imagen_fondo: null, imagen_banner: null });
+  const [cargandoBranding, setCargandoBranding] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const avisar = (texto: string, ok = true) => {
@@ -94,6 +97,66 @@ export default function GestionPortada({ darkMode, theme, isMobile }: GestionPor
   };
 
   useEffect(() => { cargarDatos(); }, []);
+
+  const cargarBranding = async () => {
+    try {
+      setCargandoBranding(true);
+      const { data, error } = await supabase.from('configuracion_web').select('*').eq('id', 'config').single();
+      if (!error && data) {
+        setBranding({
+          tema_activo: data.tema_activo || null,
+          mensaje_tema: data.mensaje_tema || '',
+          color_primario: data.color_primario || '#111827',
+          color_secundario: data.color_secundario || '#ffffff',
+          imagen_fondo: data.imagen_fondo || null,
+          imagen_banner: data.imagen_banner || null
+        });
+      }
+    } catch (err) {
+      console.error('Error cargando branding:', err);
+    } finally {
+      setCargandoBranding(false);
+    }
+  };
+
+  const guardarBranding = async () => {
+    try {
+      const { error } = await supabase.from('configuracion_web').upsert({
+        id: 'config',
+        tema_activo: branding.tema_activo,
+        mensaje_tema: branding.mensaje_tema,
+        color_primario: branding.color_primario,
+        color_secundario: branding.color_secundario,
+        imagen_fondo: branding.imagen_fondo,
+        imagen_banner: branding.imagen_banner,
+        actualizado_en: new Date().toISOString()
+      });
+      if (error) throw error;
+      avisar('Branding guardado correctamente.');
+    } catch (err: any) {
+      avisar('Error al guardar branding: ' + (err?.message || err), false);
+    }
+  };
+
+  const desactivarBranding = async () => {
+    setBranding(prev => ({ ...prev, tema_activo: null, mensaje_tema: '' }));
+    try {
+      const { error } = await supabase.from('configuracion_web').upsert({
+        id: 'config',
+        tema_activo: null,
+        mensaje_tema: '',
+        actualizado_en: new Date().toISOString()
+      });
+      if (error) throw error;
+      avisar('Branding desactivado. La web vuelve a su apariencia normal.');
+    } catch (err: any) {
+      avisar('Error: ' + (err?.message || err), false);
+    }
+  };
+
+  useEffect(() => {
+    if (pestanaActiva === 'branding') cargarBranding();
+  }, [pestanaActiva]);
 
   // --- PRODUCTOS ---
   const stockPorId = useMemo(() => {
@@ -273,7 +336,7 @@ export default function GestionPortada({ darkMode, theme, isMobile }: GestionPor
   };
 
   const pestanaActual = TIPOS.find((t) => t.id === pestanaActiva)!;
-  const esProductos = pestanaActiva !== 'banner';
+  const esProductos = pestanaActiva !== 'banner' && pestanaActiva !== 'branding';
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
@@ -298,7 +361,7 @@ export default function GestionPortada({ darkMode, theme, isMobile }: GestionPor
       )}
 
       {/* PESTAÑAS */}
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: '12px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(4, 1fr)', gap: '12px' }}>
         {TIPOS.map((t) => {
           const activo = pestanaActiva === t.id;
           const cantidad = filas.filter((f) => f.tipo === t.id).length;
@@ -610,6 +673,115 @@ export default function GestionPortada({ darkMode, theme, isMobile }: GestionPor
             )}
           </div>
         </>
+      )}
+
+      {/* ============ BRANDING TEMATICO ============ */}
+      {pestanaActiva === 'branding' && (
+        <div style={{ backgroundColor: theme.card, padding: '25px', borderRadius: '20px', border: `1px solid ${theme.border}`, display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <h3 style={{ margin: 0, color: theme.text, fontWeight: '800', fontSize: '1.1rem' }}>🎨 Branding temático de la web</h3>
+          <p style={{ margin: 0, fontSize: '0.85rem', color: theme.subtext }}>
+            Activá un tema visual para la página pública. La web aplicará colores, fondo y mensaje automáticamente.
+          </p>
+
+          {cargandoBranding && <p style={{ color: theme.subtext }}>Cargando configuración...</p>}
+
+          <div>
+            <label style={{ fontSize: '0.8rem', fontWeight: 700, color: theme.subtext, display: 'block', marginBottom: '4px' }}>Tema activo</label>
+            <select
+              value={branding.tema_activo || ''}
+              onChange={(e) => setBranding(prev => ({ ...prev, tema_activo: e.target.value || null }))}
+              style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: theme.card, color: theme.text, fontSize: '0.9rem' }}
+            >
+              <option value="">Sin tema (apariencia normal)</option>
+              <option value="navidad">🎄 Navidad</option>
+              <option value="halloween">🎃 Halloween</option>
+              <option value="dia_madre">💐 Día de la Madre</option>
+              <option value="esoterico">🔮 Esotérico general</option>
+              <option value="verano">☀️ Verano</option>
+              <option value="invierno">❄️ Invierno</option>
+            </select>
+          </div>
+
+          <div>
+            <label style={{ fontSize: '0.8rem', fontWeight: 700, color: theme.subtext, display: 'block', marginBottom: '4px' }}>Mensaje del tema (opcional)</label>
+            <input
+              type="text"
+              value={branding.mensaje_tema}
+              onChange={(e) => setBranding(prev => ({ ...prev, mensaje_tema: e.target.value }))}
+              placeholder="Ej: ¡Felices Fiestas!"
+              style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: theme.card, color: theme.text, fontSize: '0.9rem' }}
+            />
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div>
+              <label style={{ fontSize: '0.8rem', fontWeight: 700, color: theme.subtext, display: 'block', marginBottom: '4px' }}>Color primario</label>
+              <input
+                type="color"
+                value={branding.color_primario}
+                onChange={(e) => setBranding(prev => ({ ...prev, color_primario: e.target.value }))}
+                style={{ width: '100%', height: '40px', border: `1px solid ${theme.border}`, borderRadius: '8px', cursor: 'pointer' }}
+              />
+            </div>
+            <div>
+              <label style={{ fontSize: '0.8rem', fontWeight: 700, color: theme.subtext, display: 'block', marginBottom: '4px' }}>Color secundario</label>
+              <input
+                type="color"
+                value={branding.color_secundario}
+                onChange={(e) => setBranding(prev => ({ ...prev, color_secundario: e.target.value }))}
+                style={{ width: '100%', height: '40px', border: `1px solid ${theme.border}`, borderRadius: '8px', cursor: 'pointer' }}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label style={{ fontSize: '0.8rem', fontWeight: 700, color: theme.subtext, display: 'block', marginBottom: '4px' }}>URL imagen de fondo (opcional)</label>
+            <input
+              type="text"
+              value={branding.imagen_fondo || ''}
+              onChange={(e) => setBranding(prev => ({ ...prev, imagen_fondo: e.target.value || null }))}
+              placeholder="https://..."
+              style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: theme.card, color: theme.text, fontSize: '0.9rem' }}
+            />
+          </div>
+
+          <div>
+            <label style={{ fontSize: '0.8rem', fontWeight: 700, color: theme.subtext, display: 'block', marginBottom: '4px' }}>URL imagen de banner (opcional)</label>
+            <input
+              type="text"
+              value={branding.imagen_banner || ''}
+              onChange={(e) => setBranding(prev => ({ ...prev, imagen_banner: e.target.value || null }))}
+              placeholder="https://..."
+              style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: theme.card, color: theme.text, fontSize: '0.9rem' }}
+            />
+          </div>
+
+          {/* Vista previa */}
+          {branding.tema_activo && (
+            <div style={{ padding: '16px', borderRadius: '12px', border: `2px solid ${branding.color_primario}`, backgroundColor: branding.color_secundario, textAlign: 'center' }}>
+              <div style={{ fontSize: '0.75rem', color: branding.color_primario, fontWeight: 700, textTransform: 'uppercase', marginBottom: '4px' }}>Vista previa</div>
+              <div style={{ fontSize: '1.2rem', fontWeight: 900, color: branding.color_primario }}>{branding.mensaje_tema || 'Mensaje del tema'}</div>
+              <div style={{ fontSize: '0.8rem', color: branding.color_primario, marginTop: '4px', opacity: 0.8 }}>Tema: {branding.tema_activo}</div>
+            </div>
+          )}
+
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              onClick={guardarBranding}
+              style={{ flex: 1, padding: '12px 16px', borderRadius: '10px', border: 'none', backgroundColor: '#3b82f6', color: '#fff', fontWeight: 700, cursor: 'pointer', fontSize: '0.9rem', minWidth: '120px' }}
+            >
+              💾 Guardar branding
+            </button>
+            <button
+              type="button"
+              onClick={desactivarBranding}
+              style={{ flex: 1, padding: '12px 16px', borderRadius: '10px', border: '1px solid #ef4444', background: 'transparent', color: '#ef4444', fontWeight: 700, cursor: 'pointer', fontSize: '0.9rem', minWidth: '120px' }}
+            >
+              🚫 Desactivar branding
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );
