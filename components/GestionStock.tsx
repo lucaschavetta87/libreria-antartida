@@ -18,7 +18,7 @@ import {
   PRINCIPALES_POR_DEFECTO, calcularPrincipales, esPrincipal as esCatPrincipal,
   generarIdCategoria, leerPrincipalesLocal, guardarPrincipalesLocal, limpiarPrincipalesLocal
 } from '../lib/categorias';
-import { normalizarCodigo } from '../lib/codigobarras';
+import { normalizarCodigo, barcodeSvg } from '../lib/codigobarras';
 import { dibujarEtiquetasEnDoc } from '../lib/etiquetasPdf';
 import { prepararImagenRedimensionada, subirArchivoAStorage } from '../lib/imageUtils';
 import { useToast } from './ui/Avisos';
@@ -843,11 +843,14 @@ function ModalDetalle({ item, darkMode, onClose, onEdit, onDelete, obtenerLabelC
     const mayorista = Number(item.precio_mayorista || 0);
     const minorista = Number(item.precio_minorista || 0);
 
+    // Generar SVG del código de barras (reutiliza el encoder del sistema)
+    const barcodeSvgStr = barcodeSvg(codigo, 200, 40) || '';
+
     let etiquetas = '';
     for (let i = 0; i < cantidad; i++) {
       etiquetas += '<div class="etiqueta">' +
         (mostrarNombre ? '<div class="nombre">' + nombre + '</div>' : '') +
-        (mostrarCodigo ? '<div class="barcode">' + codigo + '</div>' : '') +
+        (mostrarCodigo ? '<div class="barcode">' + barcodeSvgStr + '<div class="barcode-text">' + codigo + '</div></div>' : '') +
         (mostrarMayorista ? '<div class="precio">Mayorista: $' + mayorista.toLocaleString('es-AR') + '</div>' : '') +
         (mostrarMinorista ? '<div class="precio">Minorista: $' + minorista.toLocaleString('es-AR') + '</div>' : '') +
       '</div>';
@@ -861,7 +864,9 @@ function ModalDetalle({ item, darkMode, onClose, onEdit, onDelete, obtenerLabelC
       '.contenedor { display: flex; flex-wrap: wrap; gap: 4mm; justify-content: center; }' +
       '.etiqueta { width: ' + ancho + 'mm; height: ' + alto + 'mm; border: 1px dashed #ccc; padding: 3mm; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; overflow: hidden; page-break-inside: avoid; }' +
       '.nombre { font-size: 9px; font-weight: 700; margin-bottom: 2mm; line-height: 1.1; max-height: 12mm; overflow: hidden; }' +
-      '.barcode { font-family: monospace; font-size: 11px; font-weight: bold; letter-spacing: 1px; margin: 2mm 0; border: 1px solid #000; padding: 2mm 4mm; }' +
+      '.barcode { margin: 2mm 0; }' +
+      '.barcode svg { max-width: 100%; height: auto; }' +
+      '.barcode-text { font-family: monospace; font-size: 9px; margin-top: 1mm; }' +
       '.precio { font-size: 9px; font-weight: 700; margin-top: 1mm; }' +
       '@media print { body { margin: 0; } .contenedor { gap: 2mm; } }' +
       '</style></head><body>' +
@@ -1040,14 +1045,14 @@ function ModalDetalle({ item, darkMode, onClose, onEdit, onDelete, obtenerLabelC
           </div>
           <div style={{ display: 'flex', gap: '10px', flexDirection: 'column' }}>
             {onAgregarAlCarrito && !item.sin_stock && (
-              <button onClick={() => { if (variedades.length > 0 && !variedadSeleccionada) { toast.avisar("Por favor, seleccioná una variedad antes de agregar.", 'alerta'); return; } const variedadObj = variedades.find(v => v.id === variedadSeleccionada); onAgregarAlCarrito(item, cantidad, variedadObj); onClose(); }} style={{ width: '100%', padding: '14px', borderRadius: '12px', border: 'none', backgroundColor: '#10b981', color: 'white', fontWeight: '800', cursor: 'pointer', fontSize: '1rem' }}>🛒 Agregar al Carrito</button>
+              <button onClick={() => { if (variedades.length > 0 && !variedadSeleccionada) { toast.avisar("Por favor, seleccioná una variedad antes de agregar.", 'alerta'); return; } const variedadObj = variedades.find(v => v.id === variedadSeleccionada); onAgregarAlCarrito(item, cantidad, variedadObj); onClose(); }} style={{ padding: '10px 18px', borderRadius: '10px', border: 'none', backgroundColor: '#10b981', color: 'white', fontWeight: '700', cursor: 'pointer', fontSize: '0.9rem', alignSelf: 'flex-start' }}>🛒 Agregar al Carrito</button>
             )}
             {item.sin_stock && (
-              <div style={{ width: '100%', padding: '14px', borderRadius: '12px', border: 'none', backgroundColor: '#4b5563', color: 'white', fontWeight: '800', textAlign: 'center', fontSize: '1rem' }}>PRODUCTO AGOTADO</div>
+              <div style={{ padding: '10px 14px', borderRadius: '10px', border: 'none', backgroundColor: '#4b5563', color: 'white', fontWeight: '800', textAlign: 'center', fontSize: '0.9rem', alignSelf: 'flex-start' }}>PRODUCTO AGOTADO</div>
             )}
             <div style={{ display: 'flex', gap: '10px' }}>
-              <button onClick={() => { onEdit(item); onClose(); }} style={{ flex: 1, padding: '13px', borderRadius: '12px', border: 'none', backgroundColor: '#3b82f6', color: 'white', fontWeight: '700', cursor: 'pointer' }}>✏️ Editar</button>
-              <button onClick={() => { onDelete(item.id); onClose(); }} style={{ padding: '13px 18px', borderRadius: '12px', border: '1px solid #ef4444', background: 'transparent', color: '#ef4444', fontWeight: '700', cursor: 'pointer' }}>🗑️</button>
+              <button onClick={() => { onEdit(item); onClose(); }} style={{ padding: '8px 14px', borderRadius: '8px', border: 'none', backgroundColor: '#3b82f6', color: 'white', fontWeight: 700, cursor: 'pointer', fontSize: '0.85rem' }}>✏️ Editar</button>
+              <button onClick={() => { onDelete(item.id); onClose(); }} style={{ padding: '8px 14px', borderRadius: '8px', border: '1px solid #ef4444', background: 'transparent', color: '#ef4444', fontWeight: 700, cursor: 'pointer', fontSize: '0.85rem' }}>🗑️</button>
             </div>
           </div>
           {mostrarImpresion && (
@@ -2748,7 +2753,7 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
       .sort((a, b) => a.label.localeCompare(b.label));
   };
 
-  const seleccionar = (cat: string, sub: string | null, subsub: string | null = null) => { setSel({ cat, sub, subsub }); setBusqueda(''); setPaginaActual(1); if (isMobile) setPanelAbierto(false); };
+  const seleccionar = (cat: string, sub: string | null, subsub: string | null = null) => { setSel({ cat, sub, subsub }); setBusqueda(''); setPaginaActual(1); setProductoSeleccionado(null); if (isMobile) setPanelAbierto(false); };
 
   const crearSubcategoria = async (catId: string, nombre: string) => {
     const limpio = nombre.trim();
@@ -3215,7 +3220,7 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
             </div>
           )}
 
-          {!productoSeleccionado && (stockFiltrado.length === 0 ? (
+          {stockFiltrado.length === 0 ? (
             <div style={{ padding: '48px 16px', textAlign: 'center', color: theme.subtext, border: `1px dashed ${darkMode ? '#334155' : '#cbd5e1'}`, borderRadius: '16px' }}>
               <div style={{ fontSize: '2.4rem', marginBottom: '8px' }}>📭</div>
               <div style={{ fontWeight: 700, color: theme.text, marginBottom: '4px' }}>Esta carpeta está vacía</div>
@@ -3227,13 +3232,20 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
             </div>
           ) : (
             <TablaStock isMobile={isMobile} itemsPaginaActual={itemsPaginaActual} seleccionados={seleccionados} manejarSeleccionIndividual={manejarSeleccionIndividual} setProductoSeleccionado={setProductoSeleccionado} obtenerLabelCategoria={obtenerLabelCategoria} activarEdicion={activarEdicion} borrarItem={borrarItem} actionBtnStyle={actionBtnStyle} darkMode={darkMode} theme={theme} onAlternarVisibilidad={alternarVisibilidadProducto} />
-          ))}
+          )}
 
           {!productoSeleccionado && totalPaginas > 1 && (
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '12px', marginTop: '20px' }}>
               <button onClick={() => cambiarPagina(paginaActual - 1)} disabled={paginaActual === 1} style={actionBtnStyle('#3b82f6')}>← Anterior</button>
               <span style={{ color: theme.subtext, fontSize: '0.9rem' }}>Página {paginaActual} de {totalPaginas}</span>
               <button onClick={() => cambiarPagina(paginaActual + 1)} disabled={paginaActual === totalPaginas} style={actionBtnStyle('#3b82f6')}>Siguiente →</button>
+            </div>
+          )}
+
+          {productoSeleccionado && (
+            <div style={{ marginTop: '16px' }}>
+              <button onClick={() => setProductoSeleccionado(null)} style={{ marginBottom: '16px', padding: '10px 16px', borderRadius: '10px', border: 'none', backgroundColor: '#3b82f6', color: '#fff', fontWeight: 700, cursor: 'pointer', fontSize: '0.9rem' }}>← Volver al listado</button>
+              <ModalDetalle item={productoSeleccionado} darkMode={darkMode} inline={true} onClose={() => setProductoSeleccionado(null)} onEdit={activarEdicion} onDelete={borrarItem} obtenerLabelCategoria={obtenerLabelCategoria} onCodigoChange={actualizarCodigoProducto} onAjustarPrecio={ajustarPrecioPorcentaje} />
             </div>
           )}
         </div>
