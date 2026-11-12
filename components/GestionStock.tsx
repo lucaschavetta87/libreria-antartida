@@ -3029,7 +3029,7 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', position: 'relative', width: '100%' }}>
-      {productoSeleccionado && <ModalDetalle item={productoSeleccionado} darkMode={darkMode} fullscreen={true} onClose={() => setProductoSeleccionado(null)} onEdit={activarEdicion} onDelete={borrarItem} obtenerLabelCategoria={obtenerLabelCategoria} onCodigoChange={actualizarCodigoProducto} onAjustarPrecio={ajustarPrecioPorcentaje} />}
+      {/* productoSeleccionado se muestra inline abajo (ver bloque de lista) */}
       {mostrarModalCategorias && <ModalCategorias categorias={categorias} darkMode={darkMode} onClose={() => setMostrarModalCategorias(false)} crearCategoria={crearCategoria} actualizarCategoria={actualizarCategoria} eliminarCategoria={eliminarCategoria} />}
 
       <ModalImportarExcel isOpen={mostrarModalImportar} onClose={() => setMostrarModalImportar(false)} categorias={categorias} stock={stock} setStock={setStock} darkMode={darkMode} setSel={setSel} />
