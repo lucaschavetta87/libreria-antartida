@@ -3029,7 +3029,7 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', position: 'relative', width: '100%' }}>
-      {/* productoSeleccionado se muestra inline abajo (ver bloque de lista) */}
+      {productoSeleccionado && <ModalDetalle item={productoSeleccionado} darkMode={darkMode} onClose={() => setProductoSeleccionado(null)} onEdit={activarEdicion} onDelete={borrarItem} obtenerLabelCategoria={obtenerLabelCategoria} onCodigoChange={actualizarCodigoProducto} onAjustarPrecio={ajustarPrecioPorcentaje} />}
       {mostrarModalCategorias && <ModalCategorias categorias={categorias} darkMode={darkMode} onClose={() => setMostrarModalCategorias(false)} crearCategoria={crearCategoria} actualizarCategoria={actualizarCategoria} eliminarCategoria={eliminarCategoria} />}
 
       <ModalImportarExcel isOpen={mostrarModalImportar} onClose={() => setMostrarModalImportar(false)} categorias={categorias} stock={stock} setStock={setStock} darkMode={darkMode} setSel={setSel} />
@@ -3234,7 +3234,7 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
             <TablaStock isMobile={isMobile} itemsPaginaActual={itemsPaginaActual} seleccionados={seleccionados} manejarSeleccionIndividual={manejarSeleccionIndividual} setProductoSeleccionado={setProductoSeleccionado} obtenerLabelCategoria={obtenerLabelCategoria} activarEdicion={activarEdicion} borrarItem={borrarItem} actionBtnStyle={actionBtnStyle} darkMode={darkMode} theme={theme} onAlternarVisibilidad={alternarVisibilidadProducto} />
           )}
 
-          {!productoSeleccionado && totalPaginas > 1 && (
+          {totalPaginas > 1 && (
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '12px', marginTop: '20px' }}>
               <button onClick={() => cambiarPagina(paginaActual - 1)} disabled={paginaActual === 1} style={actionBtnStyle('#3b82f6')}>← Anterior</button>
               <span style={{ color: theme.subtext, fontSize: '0.9rem' }}>Página {paginaActual} de {totalPaginas}</span>
@@ -3242,12 +3242,6 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
             </div>
           )}
 
-          {productoSeleccionado && (
-            <div style={{ marginTop: '16px' }}>
-              <button onClick={() => setProductoSeleccionado(null)} style={{ marginBottom: '16px', padding: '10px 16px', borderRadius: '10px', border: 'none', backgroundColor: '#3b82f6', color: '#fff', fontWeight: 700, cursor: 'pointer', fontSize: '0.9rem' }}>← Volver al listado</button>
-              <ModalDetalle item={productoSeleccionado} darkMode={darkMode} fullscreen={true} onClose={() => setProductoSeleccionado(null)} onEdit={activarEdicion} onDelete={borrarItem} obtenerLabelCategoria={obtenerLabelCategoria} onCodigoChange={actualizarCodigoProducto} onAjustarPrecio={ajustarPrecioPorcentaje} />
-            </div>
-          )}
         </div>
       </div>
     </div>
