@@ -755,7 +755,7 @@ function ModalImportarExcel({ isOpen, onClose, categorias, stock, setStock, dark
   );
 }
 
-function ModalDetalle({ item, darkMode, onClose, onEdit, onDelete, obtenerLabelCategoria, onAgregarAlCarrito, onCodigoChange, onAjustarPrecio }: any) {
+function ModalDetalle({ item, darkMode, onClose, onEdit, onDelete, obtenerLabelCategoria, onAgregarAlCarrito, onCodigoChange, onAjustarPrecio, fullscreen }: any) {
   const toast = useToast();
   const [variedadSeleccionada, setVariedadSeleccionada] = useState<string | null>(null);
   const [cantidad, setCantidad] = useState<number>(1);
@@ -763,6 +763,7 @@ function ModalDetalle({ item, darkMode, onClose, onEdit, onDelete, obtenerLabelC
   const [codigoTemp, setCodigoTemp] = useState('');
   const [guardandoCodigo, setGuardandoCodigo] = useState(false);
   const [errorCodigo, setErrorCodigo] = useState('');
+  const [mostrarImpresion, setMostrarImpresion] = useState(false);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
@@ -827,14 +828,62 @@ function ModalDetalle({ item, darkMode, onClose, onEdit, onDelete, obtenerLabelC
   ];
   const precioPromo = variedadActiva?.precio_promo ?? item.precio_promo;
 
+  const imprimirCodigoBarras = (item: any) => {
+    const ancho = Number((document.getElementById('printAncho') as HTMLInputElement)?.value) || 50;
+    const alto = Number((document.getElementById('printAlto') as HTMLInputElement)?.value) || 30;
+    const cantidad = Number((document.getElementById('printCantidad') as HTMLInputElement)?.value) || 1;
+    const mostrarNombre = (document.getElementById('printNombre') as HTMLInputElement)?.checked;
+    const mostrarCodigo = (document.getElementById('printCodigo') as HTMLInputElement)?.checked;
+    const mostrarMayorista = (document.getElementById('printMayorista') as HTMLInputElement)?.checked;
+    const mostrarMinorista = (document.getElementById('printMinorista') as HTMLInputElement)?.checked;
+
+    const escHtml = (s: any) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    const nombre = escHtml(item.nombre || '');
+    const codigo = item.codigo || '';
+    const mayorista = Number(item.precio_mayorista || 0);
+    const minorista = Number(item.precio_minorista || 0);
+
+    let etiquetas = '';
+    for (let i = 0; i < cantidad; i++) {
+      etiquetas += '<div class="etiqueta">' +
+        (mostrarNombre ? '<div class="nombre">' + nombre + '</div>' : '') +
+        (mostrarCodigo ? '<div class="barcode">' + codigo + '</div>' : '') +
+        (mostrarMayorista ? '<div class="precio">Mayorista: $' + mayorista.toLocaleString('es-AR') + '</div>' : '') +
+        (mostrarMinorista ? '<div class="precio">Minorista: $' + minorista.toLocaleString('es-AR') + '</div>' : '') +
+      '</div>';
+    }
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+    printWindow.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><style>' +
+      '@page { margin: 5mm; size: A4; }' +
+      'body { font-family: Arial, sans-serif; margin: 0; padding: 5mm; }' +
+      '.contenedor { display: flex; flex-wrap: wrap; gap: 4mm; justify-content: center; }' +
+      '.etiqueta { width: ' + ancho + 'mm; height: ' + alto + 'mm; border: 1px dashed #ccc; padding: 3mm; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; overflow: hidden; page-break-inside: avoid; }' +
+      '.nombre { font-size: 9px; font-weight: 700; margin-bottom: 2mm; line-height: 1.1; max-height: 12mm; overflow: hidden; }' +
+      '.barcode { font-family: monospace; font-size: 11px; font-weight: bold; letter-spacing: 1px; margin: 2mm 0; border: 1px solid #000; padding: 2mm 4mm; }' +
+      '.precio { font-size: 9px; font-weight: 700; margin-top: 1mm; }' +
+      '@media print { body { margin: 0; } .contenedor { gap: 2mm; } }' +
+      '</style></head><body>' +
+      '<div class="contenedor">' + etiquetas + '</div>' +
+      '<script>window.onload = function() { window.print(); window.close(); };<\/script>' +
+      '</body></html>');
+    printWindow.document.close();
+    setMostrarImpresion(false);
+  };
+
   return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 1000, backgroundColor: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', backdropFilter: 'blur(6px)' }}>
-      <div onClick={e => e.stopPropagation()} style={{ backgroundColor: theme.card, borderRadius: '24px', width: '100%', maxWidth: '900px', border: `1px solid ${theme.border}`, overflow: 'hidden', boxShadow: '0 25px 60px rgba(0,0,0,0.5)', maxHeight: '92vh', overflowY: 'auto' }}>
-        <div style={{ width: '100%', height: '360px', backgroundColor: theme.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', position: 'relative' }}>
+    <div onClick={fullscreen ? undefined : onClose} style={fullscreen ? { width: '100%', marginBottom: '16px' } : { position: 'fixed', inset: 0, zIndex: 1000, backgroundColor: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', backdropFilter: 'blur(6px)' }}>
+      <div onClick={e => e.stopPropagation()} style={{ backgroundColor: theme.card, borderRadius: '24px', width: '100%', maxWidth: fullscreen ? '100%' : '900px', border: `1px solid ${theme.border}`, overflow: 'hidden', boxShadow: fullscreen ? 'none' : '0 25px 60px rgba(0,0,0,0.5)', maxHeight: fullscreen ? 'none' : '92vh', overflowY: fullscreen ? 'visible' : 'auto' }}>
+        <div style={{ width: '100%', height: fullscreen ? '260px' : '360px', backgroundColor: theme.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', position: 'relative' }}>
           {item.sin_stock && <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(255,255,255,0.4)', zIndex: 1 }} />}
           {item.sin_stock && <span style={{ position: 'absolute', top: '15px', left: '15px', zIndex: 2, backgroundColor: '#374151', color: 'white', fontWeight: 800, padding: '6px 12px', borderRadius: '8px', fontSize: '0.8rem' }}>🚫 AGOTADO</span>}
           {item.imagen_url ? <img src={item.imagen_url} alt={item.nombre} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <div style={{ textAlign: 'center', color: theme.subtext }}><div style={{ fontSize: '4rem', marginBottom: '8px' }}>📦</div><div style={{ fontSize: '0.85rem' }}>Sin imagen</div></div>}
-          <button onClick={onClose} style={{ position: 'absolute', top: '12px', right: '12px', background: 'rgba(0,0,0,0.55)', border: 'none', borderRadius: '50%', width: '36px', height: '36px', color: 'white', fontSize: '18px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 5 }}>×</button>
+          {fullscreen ? (
+            <button onClick={onClose} style={{ position: 'absolute', top: '12px', left: '12px', background: 'rgba(0,0,0,0.55)', border: 'none', borderRadius: '8px', padding: '8px 14px', color: 'white', fontSize: '0.85rem', cursor: 'pointer', fontWeight: 700, zIndex: 5 }}>← Volver</button>
+          ) : (
+            <button onClick={onClose} style={{ position: 'absolute', top: '12px', right: '12px', background: 'rgba(0,0,0,0.55)', border: 'none', borderRadius: '50%', width: '36px', height: '36px', color: 'white', fontSize: '18px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 5 }}>×</button>
+          )}
         </div>
         <div style={{ padding: '24px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
@@ -922,6 +971,14 @@ function ModalDetalle({ item, darkMode, onClose, onEdit, onDelete, obtenerLabelC
               <div style={{ fontSize: '0.68rem', color: '#94a3b8', textAlign: 'center' }}>
                 Code 128 · compatible con lector de códigos de barras
               </div>
+              {item.codigo && (
+                <button
+                  onClick={() => setMostrarImpresion(true)}
+                  style={{ marginTop: '8px', width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #8b5cf6', background: 'transparent', color: '#8b5cf6', fontWeight: 700, cursor: 'pointer', fontSize: '0.85rem' }}
+                >
+                  🖨️ Imprimir código de barras
+                </button>
+              )}
             </div>
           </div>
           <div style={{ marginBottom: '6px', fontSize: '0.72rem', color: theme.subtext, fontWeight: 700 }}>
@@ -993,6 +1050,41 @@ function ModalDetalle({ item, darkMode, onClose, onEdit, onDelete, obtenerLabelC
               <button onClick={() => { onDelete(item.id); onClose(); }} style={{ padding: '13px 18px', borderRadius: '12px', border: '1px solid #ef4444', background: 'transparent', color: '#ef4444', fontWeight: '700', cursor: 'pointer' }}>🗑️</button>
             </div>
           </div>
+          {mostrarImpresion && (
+            <div style={{ position: 'fixed', inset: 0, zIndex: 2000, backgroundColor: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+              <div style={{ backgroundColor: theme.card, borderRadius: '20px', width: '100%', maxWidth: '480px', padding: '24px', maxHeight: '90vh', overflowY: 'auto' }}>
+                <h3 style={{ marginTop: 0, marginBottom: '16px', fontSize: '1.2rem', fontWeight: 800, color: theme.text }}>🖨️ Imprimir código de barras</h3>
+                <div style={{ marginBottom: '12px' }}>
+                  <div style={{ fontSize: '0.75rem', color: theme.subtext, fontWeight: 700, marginBottom: '4px' }}>Producto</div>
+                  <div style={{ fontWeight: 700, color: theme.text }}>{item.nombre}</div>
+                  <div style={{ fontFamily: 'monospace', fontSize: '0.85rem', color: theme.subtext }}>{item.codigo}</div>
+                </div>
+                <div style={{ marginBottom: '12px' }}>
+                  <div style={{ fontSize: '0.75rem', color: theme.subtext, fontWeight: 700, marginBottom: '4px' }}>Ancho etiqueta (mm)</div>
+                  <input type="number" id="printAncho" defaultValue={50} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: darkMode ? '#1e293b' : '#ffffff', color: theme.text, fontSize: '1rem' }} />
+                </div>
+                <div style={{ marginBottom: '12px' }}>
+                  <div style={{ fontSize: '0.75rem', color: theme.subtext, fontWeight: 700, marginBottom: '4px' }}>Alto etiqueta (mm)</div>
+                  <input type="number" id="printAlto" defaultValue={30} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: darkMode ? '#1e293b' : '#ffffff', color: theme.text, fontSize: '1rem' }} />
+                </div>
+                <div style={{ marginBottom: '12px' }}>
+                  <div style={{ fontSize: '0.75rem', color: theme.subtext, fontWeight: 700, marginBottom: '6px' }}>Mostrar en la etiqueta</div>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', fontSize: '0.9rem', color: theme.text }}><input type="checkbox" id="printNombre" defaultChecked /> Nombre del producto</label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', fontSize: '0.9rem', color: theme.text }}><input type="checkbox" id="printCodigo" defaultChecked /> Código de barras</label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', fontSize: '0.9rem', color: theme.text }}><input type="checkbox" id="printMayorista" /> Precio Mayorista</label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', fontSize: '0.9rem', color: theme.text }}><input type="checkbox" id="printMinorista" defaultChecked /> Precio Minorista</label>
+                </div>
+                <div style={{ marginBottom: '12px' }}>
+                  <div style={{ fontSize: '0.75rem', color: theme.subtext, fontWeight: 700, marginBottom: '4px' }}>Cantidad de etiquetas</div>
+                  <input type="number" id="printCantidad" defaultValue={1} min={1} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: darkMode ? '#1e293b' : '#ffffff', color: theme.text, fontSize: '1rem' }} />
+                </div>
+                <div style={{ display: 'flex', gap: '10px', marginTop: '16px' }}>
+                  <button onClick={() => imprimirCodigoBarras(item)} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: 'none', backgroundColor: '#8b5cf6', color: '#fff', fontWeight: 800, cursor: 'pointer', fontSize: '0.95rem' }}>🖨️ Imprimir</button>
+                  <button onClick={() => setMostrarImpresion(false)} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: `1px solid ${theme.border}`, background: 'transparent', color: theme.text, fontWeight: 700, cursor: 'pointer', fontSize: '0.95rem' }}>Cerrar</button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -2932,7 +3024,7 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', position: 'relative', width: '100%' }}>
-      {productoSeleccionado && <ModalDetalle item={productoSeleccionado} darkMode={darkMode} onClose={() => setProductoSeleccionado(null)} onEdit={activarEdicion} onDelete={borrarItem} obtenerLabelCategoria={obtenerLabelCategoria} onCodigoChange={actualizarCodigoProducto} onAjustarPrecio={ajustarPrecioPorcentaje} />}
+      {productoSeleccionado && <ModalDetalle item={productoSeleccionado} darkMode={darkMode} fullscreen={true} onClose={() => setProductoSeleccionado(null)} onEdit={activarEdicion} onDelete={borrarItem} obtenerLabelCategoria={obtenerLabelCategoria} onCodigoChange={actualizarCodigoProducto} onAjustarPrecio={ajustarPrecioPorcentaje} />}
       {mostrarModalCategorias && <ModalCategorias categorias={categorias} darkMode={darkMode} onClose={() => setMostrarModalCategorias(false)} crearCategoria={crearCategoria} actualizarCategoria={actualizarCategoria} eliminarCategoria={eliminarCategoria} />}
 
       <ModalImportarExcel isOpen={mostrarModalImportar} onClose={() => setMostrarModalImportar(false)} categorias={categorias} stock={stock} setStock={setStock} darkMode={darkMode} setSel={setSel} />
@@ -3123,7 +3215,7 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
             </div>
           )}
 
-          {stockFiltrado.length === 0 ? (
+          {!productoSeleccionado && (stockFiltrado.length === 0 ? (
             <div style={{ padding: '48px 16px', textAlign: 'center', color: theme.subtext, border: `1px dashed ${darkMode ? '#334155' : '#cbd5e1'}`, borderRadius: '16px' }}>
               <div style={{ fontSize: '2.4rem', marginBottom: '8px' }}>📭</div>
               <div style={{ fontWeight: 700, color: theme.text, marginBottom: '4px' }}>Esta carpeta está vacía</div>
@@ -3135,9 +3227,9 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
             </div>
           ) : (
             <TablaStock isMobile={isMobile} itemsPaginaActual={itemsPaginaActual} seleccionados={seleccionados} manejarSeleccionIndividual={manejarSeleccionIndividual} setProductoSeleccionado={setProductoSeleccionado} obtenerLabelCategoria={obtenerLabelCategoria} activarEdicion={activarEdicion} borrarItem={borrarItem} actionBtnStyle={actionBtnStyle} darkMode={darkMode} theme={theme} onAlternarVisibilidad={alternarVisibilidadProducto} />
-          )}
+          ))}
 
-          {totalPaginas > 1 && (
+          {!productoSeleccionado && totalPaginas > 1 && (
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '12px', marginTop: '20px' }}>
               <button onClick={() => cambiarPagina(paginaActual - 1)} disabled={paginaActual === 1} style={actionBtnStyle('#3b82f6')}>← Anterior</button>
               <span style={{ color: theme.subtext, fontSize: '0.9rem' }}>Página {paginaActual} de {totalPaginas}</span>
