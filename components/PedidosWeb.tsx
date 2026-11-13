@@ -1001,10 +1001,16 @@ export default function PedidosWeb({ darkMode = true, vendedorActual = '', vende
             {incompleto && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '12px', borderRadius: '12px', backgroundColor: theme.innerBox, border: `1px dashed ${color}66` }}>
                 <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                  <select value={item.motivo || ''} onChange={(e) => cambiarMotivo(idx, e.target.value)} style={{ ...campo, flex: '1 1 200px' }}>
-                    <option value="">Motivo (opcional)…</option>
-                    {MOTIVOS.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
-                  </select>
+                <select
+                  value={item.motivo || ''}
+                  onChange={(e) => cambiarMotivo(idx, e.target.value)}
+                  style={{ ...campo, flex: '1 1 200px', backgroundColor: '#ffffff', color: '#1e293b', colorScheme: 'light' }}
+                >
+                  <option value="" style={{ backgroundColor: '#ffffff', color: '#1e293b' }}>Motivo (opcional)…</option>
+                  {MOTIVOS.map(m => (
+                    <option key={m.id} value={m.id} style={{ backgroundColor: '#ffffff', color: '#1e293b' }}>{m.label}</option>
+                  ))}
+                </select>
                   <input
                     type="text"
                     placeholder="Nota (opcional): ej. llega el jueves"
@@ -1090,13 +1096,13 @@ export default function PedidosWeb({ darkMode = true, vendedorActual = '', vende
           <select 
             value={filtroEstado} 
             onChange={(e) => setFiltroEstado(e.target.value)}
-            style={{ padding: '12px 18px', borderRadius: '12px', border: `1px solid ${theme.border}`, backgroundColor: theme.bg, color: theme.text, outline: 'none', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.95rem' }}
+            style={{ padding: '12px 18px', borderRadius: '12px', border: `1px solid ${theme.border}`, backgroundColor: '#ffffff', color: '#1e293b', outline: 'none', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.95rem', colorScheme: 'light' }}
           >
-            <option value="todos">Todos los pedidos</option>
-            <option value="pendiente">🟠 Pendientes</option>
-            <option value="preparando">🔵 En Preparación</option>
-            <option value="completado">🟢 Completados / Entregados</option>
-            <option value="cancelado">🔴 Cancelados</option>
+            <option value="todos" style={{ backgroundColor: '#ffffff', color: '#1e293b' }}>Todos los pedidos</option>
+            <option value="pendiente" style={{ backgroundColor: '#ffffff', color: '#1e293b' }}>🟠 Pendientes</option>
+            <option value="preparando" style={{ backgroundColor: '#ffffff', color: '#1e293b' }}>🔵 En Preparación</option>
+            <option value="completado" style={{ backgroundColor: '#ffffff', color: '#1e293b' }}>🟢 Completados / Entregados</option>
+            <option value="cancelado" style={{ backgroundColor: '#ffffff', color: '#1e293b' }}>🔴 Cancelados</option>
           </select>
 
           {/* Alternar entre tarjetas y lista */}
@@ -1143,7 +1149,7 @@ export default function PedidosWeb({ darkMode = true, vendedorActual = '', vende
                 value={nombreClienteNuevo}
                 onChange={(e) => buscarClientePorNombre(e.target.value)}
                 placeholder="Nombre del cliente (o seleccionar abajo)"
-                style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: theme.bg, color: theme.text, fontSize: '0.95rem' }}
+                style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: '#ffffff', color: '#1e293b', fontSize: '0.95rem', colorScheme: 'light' }}
               />
               {clientesLista.length > 0 && (
                 <select
@@ -1153,11 +1159,11 @@ export default function PedidosWeb({ darkMode = true, vendedorActual = '', vende
                     const c = clientesLista.find(cl => String(cl.id) === String(e.target.value));
                     if (c) { setNombreClienteNuevo(c.nombre || ''); if (c.telefono) setTelefonoNuevo(String(c.telefono)); }
                   }}
-                  style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: theme.bg, color: theme.text, fontSize: '0.85rem', marginTop: '4px' }}
+                  style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: '#ffffff', color: '#1e293b', fontSize: '0.85rem', marginTop: '4px', colorScheme: 'light' }}
                 >
-                  <option value="" style={{ backgroundColor: theme.bg, color: theme.text }}>— Seleccionar cliente de cuenta corriente —</option>
+                  <option value="" style={{ backgroundColor: '#ffffff', color: '#1e293b' }}>— Seleccionar cliente de cuenta corriente —</option>
                   {clientesLista.map((c: any) => (
-                    <option key={c.id} value={c.id} style={{ backgroundColor: theme.bg, color: theme.text }}>{c.nombre}{c.telefono ? ' · ' + c.telefono : ''}</option>
+                    <option key={c.id} value={c.id} style={{ backgroundColor: '#ffffff', color: '#1e293b' }}>{c.nombre}{c.telefono ? ' · ' + c.telefono : ''}</option>
                   ))}
                 </select>
               )}
@@ -1169,7 +1175,7 @@ export default function PedidosWeb({ darkMode = true, vendedorActual = '', vende
                 value={telefonoNuevo}
                 onChange={(e) => setTelefonoNuevo(e.target.value)}
                 placeholder="Teléfono"
-                style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: theme.bg, color: theme.text, fontSize: '0.95rem' }}
+                style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: '#ffffff', color: '#1e293b', fontSize: '0.95rem', colorScheme: 'light' }}
               />
             </div>
           </div>
@@ -1180,10 +1186,10 @@ export default function PedidosWeb({ darkMode = true, vendedorActual = '', vende
               <select
                 value={metodoEnvioNuevo}
                 onChange={(e) => setMetodoEnvioNuevo(e.target.value)}
-                style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: theme.bg, color: theme.text, fontSize: '0.95rem' }}
+                style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: '#ffffff', color: '#1e293b', fontSize: '0.95rem', colorScheme: 'light' }}
               >
-                <option value="retiro">Retiro en local</option>
-                <option value="envio">Envío a domicilio</option>
+                <option value="retiro" style={{ backgroundColor: '#ffffff', color: '#1e293b' }}>Retiro en local</option>
+                <option value="envio" style={{ backgroundColor: '#ffffff', color: '#1e293b' }}>Envío a domicilio</option>
               </select>
             </div>
             <div>
@@ -1194,7 +1200,7 @@ export default function PedidosWeb({ darkMode = true, vendedorActual = '', vende
                 onChange={(e) => setVendedorNuevo(e.target.value)}
                 placeholder="Vendedor asignado"
                 list="lista-vendedores"
-                style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: theme.bg, color: theme.text, fontSize: '0.95rem' }}
+                style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: '#ffffff', color: '#1e293b', fontSize: '0.95rem', colorScheme: 'light' }}
               />
             </div>
           </div>
@@ -1204,7 +1210,7 @@ export default function PedidosWeb({ darkMode = true, vendedorActual = '', vende
             <select
               value={metodoPagoNuevo}
               onChange={(e) => setMetodoPagoNuevo(e.target.value as any)}
-              style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: theme.bg, color: theme.text, fontSize: '0.95rem' }}
+              style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: '#ffffff', color: '#1e293b', fontSize: '0.95rem', colorScheme: 'light' }}
             >
               <option value="Efectivo" style={{ backgroundColor: theme.bg, color: theme.text }}>Efectivo</option>
               <option value="Transferencia" style={{ backgroundColor: theme.bg, color: theme.text }}>Transferencia</option>
@@ -1225,7 +1231,7 @@ export default function PedidosWeb({ darkMode = true, vendedorActual = '', vende
                 value={direccionNuevo}
                 onChange={(e) => setDireccionNuevo(e.target.value)}
                 placeholder="Dirección de envío"
-                style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: theme.bg, color: theme.text, fontSize: '0.95rem' }}
+                style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: '#ffffff', color: '#1e293b', fontSize: '0.95rem', colorScheme: 'light' }}
               />
             </div>
           )}
@@ -1270,12 +1276,12 @@ export default function PedidosWeb({ darkMode = true, vendedorActual = '', vende
                           <select
                             onChange={(e) => { if (e.target.value) agregarProductoAlCarritoPedido(s, e.target.value); }}
                             onClick={(e) => e.stopPropagation()}
-                            style={{ marginTop: '4px', padding: '4px 6px', borderRadius: '6px', border: `1px solid ${theme.border}`, backgroundColor: theme.bg, color: theme.text, fontSize: '0.8rem', width: '100%' }}
+                            style={{ marginTop: '4px', padding: '4px 6px', borderRadius: '6px', border: `1px solid ${theme.border}`, backgroundColor: '#ffffff', color: '#1e293b', fontSize: '0.8rem', width: '100%', colorScheme: 'light' }}
                             defaultValue=""
                           >
-                            <option value="">Elegir variedad...</option>
+                            <option value="" style={{ backgroundColor: '#ffffff', color: '#1e293b' }}>Elegir variedad...</option>
                             {vars.map((v: any) => (
-                              <option key={v.id} value={v.id}>{v.nombre}{v.codigo ? ' · ' + v.codigo : ''}</option>
+                              <option key={v.id} value={v.id} style={{ backgroundColor: '#ffffff', color: '#1e293b' }}>{v.nombre}{v.codigo ? ' · ' + v.codigo : ''}</option>
                             ))}
                           </select>
                         )}
@@ -1809,11 +1815,11 @@ export default function PedidosWeb({ darkMode = true, vendedorActual = '', vende
                 <select 
                   value={clienteIdSeleccionado} 
                   onChange={(e) => setClienteIdSeleccionado(e.target.value)}
-                  style={{ padding: '12px', borderRadius: '10px', border: `1px solid ${theme.border}`, backgroundColor: theme.innerBox, color: theme.text, fontWeight: 'bold', outline: 'none' }}
+                  style={{ padding: '12px', borderRadius: '10px', border: `1px solid ${theme.border}`, backgroundColor: '#ffffff', color: '#1e293b', fontWeight: 'bold', outline: 'none', colorScheme: 'light' }}
                 >
-                  <option value="" disabled>-- Seleccioná un cliente --</option>
+                  <option value="" disabled style={{ backgroundColor: '#ffffff', color: '#1e293b' }}>-- Seleccioná un cliente --</option>
                   {clientesLista.map((cli) => (
-                    <option key={cli.id} value={cli.id}>
+                    <option key={cli.id} value={cli.id} style={{ backgroundColor: '#ffffff', color: '#1e293b' }}>
                       👤 {cli.nombre} (Saldo actual: ${Number(cli.saldo_cc || 0).toLocaleString('es-AR')})
                     </option>
                   ))}
