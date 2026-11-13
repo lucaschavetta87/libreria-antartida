@@ -1249,10 +1249,10 @@ export default function PedidosWeb({ darkMode = true, vendedorActual = '', vende
                 onChange={(e) => setTransporteNuevo(e.target.value)}
                 style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: '#ffffff', color: '#1e293b', fontSize: '0.95rem', colorScheme: 'light' }}
               >
-                <option value="">Sin transporte asignado</option>
-                <option value="Propio">Propio</option>
-                <option value="Tercero">Tercero</option>
-                <option value="Correo">Correo</option>
+                <option value="" style={{ backgroundColor: '#ffffff', color: '#1e293b' }}>Sin transporte asignado</option>
+                <option value="Propio" style={{ backgroundColor: '#ffffff', color: '#1e293b' }}>Propio</option>
+                <option value="Tercero" style={{ backgroundColor: '#ffffff', color: '#1e293b' }}>Tercero</option>
+                <option value="Correo" style={{ backgroundColor: '#ffffff', color: '#1e293b' }}>Correo</option>
               </select>
             </div>
             <div>
@@ -1286,9 +1286,9 @@ export default function PedidosWeb({ darkMode = true, vendedorActual = '', vende
               onChange={(e) => setMetodoPagoNuevo(e.target.value as any)}
               style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: '#ffffff', color: '#1e293b', fontSize: '0.95rem', colorScheme: 'light' }}
             >
-              <option value="Efectivo" style={{ backgroundColor: theme.bg, color: theme.text }}>Efectivo</option>
-              <option value="Transferencia" style={{ backgroundColor: theme.bg, color: theme.text }}>Transferencia</option>
-              <option value="Cuenta Corriente" style={{ backgroundColor: theme.bg, color: theme.text }}>Cuenta Corriente</option>
+              <option value="Efectivo" style={{ backgroundColor: '#ffffff', color: '#1e293b' }}>Efectivo</option>
+              <option value="Transferencia" style={{ backgroundColor: '#ffffff', color: '#1e293b' }}>Transferencia</option>
+              <option value="Cuenta Corriente" style={{ backgroundColor: '#ffffff', color: '#1e293b' }}>Cuenta Corriente</option>
             </select>
             {metodoPagoNuevo === 'Cuenta Corriente' && !clienteIdNuevo && (
               <div style={{ fontSize: '0.75rem', color: '#f59e0b', marginTop: '4px', fontWeight: 600 }}>
