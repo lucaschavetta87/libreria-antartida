@@ -10,6 +10,9 @@ export default function ClientesCC({ darkMode = true }: { darkMode?: boolean }) 
   const [clientes, setClientes] = useState<any[]>([]);
   const [nombre, setNombre] = useState('');
   const [telefono, setTelefono] = useState('');
+  const [localidad, setLocalidad] = useState('');
+  const [domicilio, setDomicilio] = useState('');
+  const [codigoPostal, setCodigoPostal] = useState('');
   const [descuentoEspecial, setDescuentoEspecial] = useState('0');
   const [filtro, setFiltro] = useState('');
   const [cargando, setCargando] = useState(true);
@@ -120,9 +123,9 @@ export default function ClientesCC({ darkMode = true }: { darkMode?: boolean }) 
     if (descNum < 0 || descNum > 100) return toast.avisar("El descuento debe estar entre 0% y 100%.", 'alerta');
 
     try {
-      await supabase.from('clientes').insert([{ nombre, telefono, saldo_cc: 0, descuento_especial: descNum }]);
+      await supabase.from('clientes').insert([{ nombre, telefono, localidad, domicilio, codigo_postal: codigoPostal, saldo_cc: 0, descuento_especial: descNum }]);
       toast.exito("Cliente guardado correctamente.");
-      setNombre(''); setTelefono(''); setDescuentoEspecial('0');
+      setNombre(''); setTelefono(''); setLocalidad(''); setDomicilio(''); setCodigoPostal(''); setDescuentoEspecial('0');
       cargarClientes();
     } catch (e: any) { toast.error("Error: " + e.message); }
   };
@@ -242,8 +245,20 @@ export default function ClientesCC({ darkMode = true }: { darkMode?: boolean }) 
               <label style={{ color: theme.subtext, fontSize: '0.8rem', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>DESCUENTO AUTOMÁTICO (%)</label>
               <input type="number" style={{ ...inputStyle, marginBottom: 0 }} value={descuentoEspecial} onChange={e => setDescuentoEspecial(e.target.value)} min="0" max="100" />
             </div>
+            <div>
+              <label style={{ color: theme.subtext, fontSize: '0.8rem', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>LOCALIDAD</label>
+              <input style={{ ...inputStyle, marginBottom: 0 }} value={localidad} onChange={e => setLocalidad(e.target.value)} placeholder="Ej: Capital Federal" />
+            </div>
+            <div>
+              <label style={{ color: theme.subtext, fontSize: '0.8rem', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>DOMICILIO</label>
+              <input style={{ ...inputStyle, marginBottom: 0 }} value={domicilio} onChange={e => setDomicilio(e.target.value)} placeholder="Ej: Av. Siempre Viva 123" />
+            </div>
+            <div>
+              <label style={{ color: theme.subtext, fontSize: '0.8rem', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>CÓDIGO POSTAL</label>
+              <input type="text" style={{ ...inputStyle, marginBottom: 0 }} value={codigoPostal} onChange={e => setCodigoPostal(e.target.value)} placeholder="Ej: 1425" />
+            </div>
           </div>
-          
+
           <button onClick={crearCliente} style={{ ...btnStyle, backgroundColor: '#3b82f6', color: '#fff', width: '100%', marginTop: '20px' }}>
             ➕ GUARDAR CLIENTE EN SISTEMA
           </button>
@@ -311,6 +326,15 @@ export default function ClientesCC({ darkMode = true }: { darkMode?: boolean }) 
                           )}
                         </div>
                         <div style={{ color: theme.subtext, fontSize: '0.85rem', marginTop: '4px' }}>📞 {cliente.telefono || 'Sin número de contacto'}</div>
+                        {cliente.localidad && (
+                          <div style={{ color: theme.subtext, fontSize: '0.85rem', marginTop: '2px' }}>📍 {cliente.localidad}</div>
+                        )}
+                        {cliente.domicilio && (
+                          <div style={{ color: theme.subtext, fontSize: '0.85rem', marginTop: '2px' }}>🏠 {cliente.domicilio}</div>
+                        )}
+                        {cliente.codigo_postal && (
+                          <div style={{ color: theme.subtext, fontSize: '0.85rem', marginTop: '2px' }}>📮 C.P. {cliente.codigo_postal}</div>
+                        )}
                       </div>
                     </div>
 

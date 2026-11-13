@@ -170,6 +170,10 @@ export default function PedidosWeb({ darkMode = true, vendedorActual = '', vende
   const [mostrarSugerenciasProd, setMostrarSugerenciasProd] = useState(false);
   const [nombreClienteNuevo, setNombreClienteNuevo] = useState('');
   const [telefonoNuevo, setTelefonoNuevo] = useState('');
+  const [localidadNuevo, setLocalidadNuevo] = useState('');
+  const [domicilioNuevo, setDomicilioNuevo] = useState('');
+  const [codigoPostalNuevo, setCodigoPostalNuevo] = useState('');
+  const [transporteNuevo, setTransporteNuevo] = useState('');
   const [metodoEnvioNuevo, setMetodoEnvioNuevo] = useState('retiro');
   const [direccionNuevo, setDireccionNuevo] = useState('');
   const [vendedorNuevo, setVendedorNuevo] = useState('');
@@ -257,7 +261,13 @@ export default function PedidosWeb({ darkMode = true, vendedorActual = '', vende
         productos: productosConVendedor,
         total: totalCarritoPedido(),
         estado: 'pendiente',
-        vendedor: vendedorNuevo || null
+        vendedor: vendedorNuevo || null,
+        metodo_pago: metodoPagoNuevo,
+        cliente_id: clienteIdNuevo ? Number(clienteIdNuevo) : null,
+        localidad: localidadNuevo.trim() || null,
+        domicilio: domicilioNuevo.trim() || null,
+        codigo_postal: codigoPostalNuevo.trim() || null,
+        transporte: transporteNuevo || null
       }]);
       if (error) throw error;
       toast.avisar('Pedido creado correctamente.', 'exito');
@@ -265,10 +275,16 @@ export default function PedidosWeb({ darkMode = true, vendedorActual = '', vende
       setCarritoPedido([]);
       setNombreClienteNuevo('');
       setTelefonoNuevo('');
+      setLocalidadNuevo('');
+      setDomicilioNuevo('');
+      setCodigoPostalNuevo('');
+      setTransporteNuevo('');
       setMetodoEnvioNuevo('retiro');
       setDireccionNuevo('');
       setVendedorNuevo('');
       setBusquedaProducto('');
+      setClienteIdNuevo('');
+      setMetodoPagoNuevo('Efectivo');
       await cargarPedidosYClientes();
     } catch (err: any) {
       toast.error('Error al crear pedido: ' + (err?.message || err));
@@ -283,6 +299,9 @@ export default function PedidosWeb({ darkMode = true, vendedorActual = '', vende
     if (coincidencia) {
       setClienteIdNuevo(String(coincidencia.id));
       if (coincidencia.telefono) setTelefonoNuevo(String(coincidencia.telefono));
+      if (coincidencia.localidad) setLocalidadNuevo(String(coincidencia.localidad));
+      if (coincidencia.domicilio) setDomicilioNuevo(String(coincidencia.domicilio));
+      if (coincidencia.codigo_postal) setCodigoPostalNuevo(String(coincidencia.codigo_postal));
     } else {
       setClienteIdNuevo('');
     }
@@ -496,6 +515,18 @@ export default function PedidosWeb({ darkMode = true, vendedorActual = '', vende
       c.telefono?.toString().trim() === pedido.telefono?.toString().trim()
     );
     setClienteIdSeleccionado(coincidencia ? String(coincidencia.id) : (clientesLista[0]?.id ? String(clientesLista[0].id) : ''));
+    // Cargar datos de dirección del cliente si existe
+    if (coincidencia) {
+      setLocalidadNuevo(coincidencia.localidad || '');
+      setDomicilioNuevo(coincidencia.domicilio || '');
+      setCodigoPostalNuevo(coincidencia.codigo_postal || '');
+      setTransporteNuevo(coincidencia.transporte || '');
+    } else {
+      setLocalidadNuevo('');
+      setDomicilioNuevo('');
+      setCodigoPostalNuevo('');
+      setTransporteNuevo('');
+    }
     setMostrarModalPago(true);
   };
 
@@ -1178,9 +1209,52 @@ export default function PedidosWeb({ darkMode = true, vendedorActual = '', vende
                 style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: '#ffffff', color: '#1e293b', fontSize: '0.95rem', colorScheme: 'light' }}
               />
             </div>
+            <div>
+              <label style={{ fontSize: '0.8rem', fontWeight: 700, color: theme.subtext, display: 'block', marginBottom: '4px' }}>Localidad</label>
+              <input
+                type="text"
+                value={localidadNuevo}
+                onChange={(e) => setLocalidadNuevo(e.target.value)}
+                placeholder="Ej: Capital Federal"
+                style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: '#ffffff', color: '#1e293b', fontSize: '0.95rem', colorScheme: 'light' }}
+              />
+            </div>
+            <div>
+              <label style={{ fontSize: '0.8rem', fontWeight: 700, color: theme.subtext, display: 'block', marginBottom: '4px' }}>Domicilio</label>
+              <input
+                type="text"
+                value={domicilioNuevo}
+                onChange={(e) => setDomicilioNuevo(e.target.value)}
+                placeholder="Ej: Av. Siempre Viva 123"
+                style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: '#ffffff', color: '#1e293b', fontSize: '0.95rem', colorScheme: 'light' }}
+              />
+            </div>
+            <div>
+              <label style={{ fontSize: '0.8rem', fontWeight: 700, color: theme.subtext, display: 'block', marginBottom: '4px' }}>Código Postal</label>
+              <input
+                type="text"
+                value={codigoPostalNuevo}
+                onChange={(e) => setCodigoPostalNuevo(e.target.value)}
+                placeholder="Ej: 1425"
+                style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: '#ffffff', color: '#1e293b', fontSize: '0.95rem', colorScheme: 'light' }}
+              />
+            </div>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div>
+              <label style={{ fontSize: '0.8rem', fontWeight: 700, color: theme.subtext, display: 'block', marginBottom: '4px' }}>Transporte</label>
+              <select
+                value={transporteNuevo}
+                onChange={(e) => setTransporteNuevo(e.target.value)}
+                style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: '#ffffff', color: '#1e293b', fontSize: '0.95rem', colorScheme: 'light' }}
+              >
+                <option value="">Sin transporte asignado</option>
+                <option value="Propio">Propio</option>
+                <option value="Tercero">Tercero</option>
+                <option value="Correo">Correo</option>
+              </select>
+            </div>
             <div>
               <label style={{ fontSize: '0.8rem', fontWeight: 700, color: theme.subtext, display: 'block', marginBottom: '4px' }}>Método de envío</label>
               <select
