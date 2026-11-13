@@ -242,6 +242,10 @@ export default function VentasMayoristas({ stock, setStock, ventas, setVentas, d
   const totalFinal = () => Math.max(0, subtotalCarrito() - descuentoGremioCalculado - descuentoEfectivo);
 
   const aplicarAjustePorcentualMasivo = (tipo: 'recargo' | 'descuento') => {
+    if (infoClienteActivo && Number(infoClienteActivo.descuento_especial) > 0) {
+      toast.avisar('Este cliente ya tiene un descuento asignado (' + infoClienteActivo.descuento_especial + '%). El ajuste manual está bloqueado.', 'alerta');
+      return;
+    }
     const porcentaje = Number(porcentajeAjuste);
     if (isNaN(porcentaje) || porcentaje <= 0) {
       return toast.avisar("Por favor ingresá un número de porcentaje válido y mayor a 0.", 'alerta');
@@ -1094,6 +1098,8 @@ export default function VentasMayoristas({ stock, setStock, ventas, setVentas, d
                 tono={tonoPos}
                 etiqueta="⚡ AJUSTE PORCENTUAL SOBRE LA TARIFA MAYORISTA"
                 placeholder="Ej: 12 equivale a 12%"
+                bloqueado={!!(infoClienteActivo && Number(infoClienteActivo.descuento_especial) > 0)}
+                mensajeBloqueo={infoClienteActivo && Number(infoClienteActivo.descuento_especial) > 0 ? `Cliente con descuento asignado del ${infoClienteActivo.descuento_especial}% — el ajuste manual está deshabilitado` : undefined}
               />
 
               <div style={{ marginTop: '16px' }}>
@@ -1189,6 +1195,12 @@ export default function VentasMayoristas({ stock, setStock, ventas, setVentas, d
                         }}>
                           🟣 CUENTA CORRIENTE
                         </span>
+                      </div>
+                    )}
+                    {infoClienteActivo && Number(infoClienteActivo.descuento_especial) > 0 && (
+                      <div style={{ marginTop: '8px', padding: '8px 12px', borderRadius: '10px', backgroundColor: 'rgba(139, 92, 246, 0.1)', border: '1px solid rgba(139, 92, 246, 0.3)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '0.8rem', color: '#8b5cf6', fontWeight: 700 }}>🎯 Descuento aprobado para este cliente</span>
+                        <span style={{ fontSize: '1rem', color: '#8b5cf6', fontWeight: 900, fontFamily: 'monospace' }}>{infoClienteActivo.descuento_especial}%</span>
                       </div>
                     )}
                     {!clienteSeleccionado && (

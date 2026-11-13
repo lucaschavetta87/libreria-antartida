@@ -115,20 +115,25 @@ type AjusteProps = {
   tono: TonosPos;
   etiqueta: string;
   placeholder: string;
+  /** Si es true, bloquea el control (ej: cliente con descuento asignado). */
+  bloqueado?: boolean;
+  /** Mensaje que se muestra cuando está bloqueado. */
+  mensajeBloqueo?: string;
 };
 
 /** Control de % masivo: se elige recargo o descuento y se aplica al carrito. */
-export function AjustePorcentual({ valor, onValor, onAplicar, tono, etiqueta, placeholder }: AjusteProps) {
+export function AjustePorcentual({ valor, onValor, onAplicar, tono, etiqueta, placeholder, bloqueado = false, mensajeBloqueo }: AjusteProps) {
   const btn = (tipo: 'recargo' | 'descuento', texto: string, color: string) => (
     <button
       type="button"
       onClick={() => onAplicar(tipo)}
+      disabled={bloqueado}
       style={{
-        flex: 1, padding: '11px 12px', backgroundColor: color, color: '#fff', border: 'none',
-        borderRadius: '9px', fontWeight: 800, cursor: 'pointer', fontSize: '0.82rem', whiteSpace: 'nowrap',
-        minHeight: 42, transition: 'filter .15s ease'
+        flex: 1, padding: '11px 12px', backgroundColor: bloqueado ? '#9ca3af' : color, color: '#fff', border: 'none',
+        borderRadius: '9px', fontWeight: 800, cursor: bloqueado ? 'not-allowed' : 'pointer', fontSize: '0.82rem', whiteSpace: 'nowrap',
+        minHeight: 42, transition: 'filter .15s ease', opacity: bloqueado ? 0.5 : 1
       }}
-      onMouseEnter={(e: any) => { e.currentTarget.style.filter = 'brightness(1.12)'; }}
+      onMouseEnter={(e: any) => { if (!bloqueado) e.currentTarget.style.filter = 'brightness(1.12)'; }}
       onMouseLeave={(e: any) => { e.currentTarget.style.filter = 'none'; }}
     >
       {texto}
@@ -138,11 +143,17 @@ export function AjustePorcentual({ valor, onValor, onAplicar, tono, etiqueta, pl
   return (
     <div style={{
       backgroundColor: tono.fondo, padding: '14px', borderRadius: '12px',
-      border: `1px dashed ${tono.borde}`, display: 'flex', flexDirection: 'column', gap: '10px'
+      border: `1px dashed ${tono.borde}`, display: 'flex', flexDirection: 'column', gap: '10px',
+      opacity: bloqueado ? 0.6 : 1
     }}>
       <label style={{ fontSize: '0.76rem', fontWeight: 800, color: tono.texto, letterSpacing: '0.3px' }}>
         {etiqueta}
       </label>
+      {bloqueado && mensajeBloqueo && (
+        <div style={{ fontSize: '0.75rem', color: '#f59e0b', fontWeight: 700, padding: '6px 10px', backgroundColor: 'rgba(245,158,11,0.1)', borderRadius: '8px', border: '1px solid rgba(245,158,11,0.3)' }}>
+          🔒 {mensajeBloqueo}
+        </div>
+      )}
       <div style={{ display: 'flex', gap: '9px', alignItems: 'center', flexDirection: 'column' }}>
         <input
           type="number"
@@ -151,10 +162,12 @@ export function AjustePorcentual({ valor, onValor, onAplicar, tono, etiqueta, pl
           value={valor}
           onChange={e => onValor(e.target.value)}
           min="1"
+          disabled={bloqueado}
           style={{
             width: '100%', padding: '11px 12px', borderRadius: '9px',
             border: `1px solid ${tono.borde}`, backgroundColor: tono.fondo, color: tono.texto,
-            outline: 'none', fontSize: '16px', fontWeight: 700, boxSizing: 'border-box'
+            outline: 'none', fontSize: '16px', fontWeight: 700, boxSizing: 'border-box',
+            opacity: bloqueado ? 0.5 : 1, cursor: bloqueado ? 'not-allowed' : 'text'
           }}
         />
         <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
