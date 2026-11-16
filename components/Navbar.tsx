@@ -40,7 +40,8 @@ export const SECCIONES = [
     label: 'Web',
     items: [
       { key: 'pagina_web', label: 'Página Web', icono: 'Web' as const, permiso: null },
-      { key: 'portada_web', label: 'Control Portada', icono: 'Portada' as const, permiso: 'portada_web' }
+      { key: 'portada_web', label: 'Control Portada', icono: 'Portada' as const, permiso: 'portada_web' },
+      { key: 'mercadolibre', label: 'MercadoLibre', icono: 'Web' as const, permiso: 'mercadolibre' }
     ]
   },
   {

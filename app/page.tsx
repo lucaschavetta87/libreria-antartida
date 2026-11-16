@@ -14,6 +14,7 @@ import CierreCaja from "../components/CierreCaja";
 import GestionUsuarios from "../components/GestiondeUsuarios"; 
 import PedidosWeb from "../components/PedidosWeb";
 import GestionPortada from "../components/GestionPortada";
+import MercadoLibre from "../components/MercadoLibre";
 import { paddingContenido } from "../lib/ui";
 import { useToast } from "../components/ui/Avisos";
 import { useTema } from "../components/ui/TemaGlobal";
@@ -22,7 +23,7 @@ import { useTema } from "../components/ui/TemaGlobal";
 interface StockItem { id: number; nombre: string; cantidad: number; [key: string]: any; }
 interface Venta { id: number; fecha?: string | null; total?: number | string | null; metodo_pago?: string | null; descuento?: number | string | null; items?: any; [key: string]: any; }
 
-type TabKey = "inicio" | "stock" | "ventas" | "ventas_mayoristas" | "pedidos_web" | "clientes" | "caja" | "usuarios" | "pagina_web" | "portada_web";
+type TabKey = "inicio" | "stock" | "ventas" | "ventas_mayoristas" | "pedidos_web" | "clientes" | "caja" | "usuarios" | "pagina_web" | "portada_web" | "mercadolibre";
 
 const APP_TITLE = "Pueblos del Mundo";
 
@@ -100,7 +101,7 @@ export default function Home() {
       setUsuarioActivo({
         nombre: "Administrador",
         username: "admin",
-        permisos: ["inicio", "stock", "ventas", "ventas_mayoristas", "pedidos_web", "clientes", "caja", "usuarios", "portada_web"]
+        permisos: ["inicio", "stock", "ventas", "ventas_mayoristas", "pedidos_web", "clientes", "caja", "usuarios", "portada_web", "mercadolibre"]
       });
       setIsAuthenticated(true);
       return;
@@ -324,6 +325,9 @@ export default function Home() {
 
               {activeTab === "portada_web" && tienePermiso("portada_web") && (
                 <GestionPortada darkMode={darkMode} theme={theme} isMobile={isMobile} />
+              )}
+              {activeTab === "mercadolibre" && tienePermiso("mercadolibre") && (
+                <MercadoLibre darkMode={darkMode} />
               )}
               
             </div>
