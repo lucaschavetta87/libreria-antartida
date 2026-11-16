@@ -842,6 +842,15 @@ function ModalDetalle({ item, darkMode, onClose, onEdit, onDelete, obtenerLabelC
     const codigo = item.codigo || '';
     const mayorista = Number(item.precio_mayorista || 0);
     const minorista = Number(item.precio_minorista || 0);
+    const promo = String(item.precio_promo || '').trim();
+
+    // Escalar fuentes segun el tamaño de la etiqueta (base: 50x30mm)
+    const escala = Math.min(ancho / 50, alto / 30);
+    const fontNombre = Math.max(6, Math.round(8 * escala));
+    const fontBarcode = Math.max(8, Math.round(11 * escala));
+    const fontBarcodeText = Math.max(6, Math.round(8 * escala));
+    const fontPrecio = Math.max(6, Math.round(8 * escala));
+    const fontPromo = Math.max(7, Math.round(9 * escala));
 
     // Generar SVG del código de barras (reutiliza el encoder del sistema)
     const barcodeSvgStr = barcodeSvg(codigo, 200, 40) || '';
@@ -851,7 +860,8 @@ function ModalDetalle({ item, darkMode, onClose, onEdit, onDelete, obtenerLabelC
       etiquetas += '<div class="etiqueta">' +
         (mostrarNombre ? '<div class="nombre">' + nombre + '</div>' : '') +
         (mostrarCodigo ? '<div class="barcode">' + barcodeSvgStr + '<div class="barcode-text">' + codigo + '</div></div>' : '') +
-        (mostrarMayorista ? '<div class="precio">Mayorista: $' + mayorista.toLocaleString('es-AR') + '</div>' : '') +
+        (mostrarMayorista ? '<div class="precio">ART: $' + mayorista.toLocaleString('es-AR') + '</div>' : '') +
+        (promo ? '<div class="promo">Promo: ' + escHtml(promo) + '</div>' : '') +
         (mostrarMinorista ? '<div class="precio">Minorista: $' + minorista.toLocaleString('es-AR') + '</div>' : '') +
       '</div>';
     }
@@ -863,11 +873,12 @@ function ModalDetalle({ item, darkMode, onClose, onEdit, onDelete, obtenerLabelC
       'body { font-family: Arial, sans-serif; margin: 0; padding: 5mm; }' +
       '.contenedor { display: flex; flex-wrap: wrap; gap: 4mm; justify-content: center; }' +
       '.etiqueta { width: ' + ancho + 'mm; height: ' + alto + 'mm; border: 1px dashed #ccc; padding: 2mm; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; overflow: hidden; page-break-inside: avoid; }' +
-      '.nombre { font-size: 8px; font-weight: 700; margin-bottom: 1mm; line-height: 1.2; max-height: 16mm; overflow: hidden; word-break: break-word; overflow-wrap: break-word; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }' +
+      '.nombre { font-size: ' + fontNombre + 'px; font-weight: 700; margin-bottom: 1mm; line-height: 1.2; max-height: ' + (alto * 0.4) + 'mm; overflow: hidden; word-break: break-word; overflow-wrap: break-word; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }' +
       '.barcode { margin: 1mm 0; max-width: 100%; }' +
       '.barcode svg { max-width: 100%; height: auto; }' +
-      '.barcode-text { font-family: monospace; font-size: 8px; margin-top: 1mm; }' +
-      '.precio { font-size: 8px; font-weight: 700; margin-top: 0.5mm; }' +
+      '.barcode-text { font-family: monospace; font-size: ' + fontBarcodeText + 'px; margin-top: 1mm; }' +
+      '.precio { font-size: ' + fontPrecio + 'px; font-weight: 700; margin-top: 0.5mm; }' +
+      '.promo { font-size: ' + fontPromo + 'px; font-weight: 800; margin-top: 1mm; color: #dc2626; }' +
       '@media print { body { margin: 0; } .contenedor { gap: 2mm; } }' +
       '</style></head><body>' +
       '<div class="contenedor">' + etiquetas + '</div>' +
@@ -1076,7 +1087,7 @@ function ModalDetalle({ item, darkMode, onClose, onEdit, onDelete, obtenerLabelC
                   <div style={{ fontSize: '0.75rem', color: theme.subtext, fontWeight: 700, marginBottom: '6px' }}>Mostrar en la etiqueta</div>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', fontSize: '0.9rem', color: theme.text }}><input type="checkbox" id="printNombre" defaultChecked /> Nombre del producto</label>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', fontSize: '0.9rem', color: theme.text }}><input type="checkbox" id="printCodigo" defaultChecked /> Código de barras</label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', fontSize: '0.9rem', color: theme.text }}><input type="checkbox" id="printMayorista" /> Precio Mayorista</label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', fontSize: '0.9rem', color: theme.text }}><input type="checkbox" id="printMayorista" /> Precio ART (Mayorista)</label>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', fontSize: '0.9rem', color: theme.text }}><input type="checkbox" id="printMinorista" defaultChecked /> Precio Minorista</label>
                 </div>
                 <div style={{ marginBottom: '12px' }}>
