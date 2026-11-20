@@ -14,8 +14,8 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 # Next.js inlinea NEXT_PUBLIC_* en el bundle en el momento del build.
-ARG NEXT_PUBLIC_SUPABASE_URL
-ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
+ARG NEXT_PUBLIC_SUPABASE_URL=https://antartida.sistemasmendoza.com.ar
+ARG NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_EUH9ifNYpstq4vmYEya9-g_Erp_geVx
 ENV NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL} \
     NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY} \
     NEXT_TELEMETRY_DISABLED=1
