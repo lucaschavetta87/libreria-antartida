@@ -1,4 +1,4 @@
-# Sistema de Gestion - Pueblos de la India
+# Sistema de Gestión - Librería Antártida
 
 Aplicacion interna para administrar stock, ventas, clientes, caja y la portada de la
 pagina web publica.

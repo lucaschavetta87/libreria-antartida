@@ -279,7 +279,7 @@ export default function MercadoLibre({ darkMode = true }: { darkMode?: boolean }
       <div class="divider"></div>
       <div class="remitente">
         <div class="remitente-titulo">Remitente</div>
-        <div class="remitente-nombre">Distribuidora India</div>
+        <div class="remitente-nombre">Libreria Antártida</div>
       </div>
       <div class="destino">
         <div class="destino-titulo">Destinatario</div>

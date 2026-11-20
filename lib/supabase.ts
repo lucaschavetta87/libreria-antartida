@@ -8,11 +8,11 @@ import { createClient } from '@supabase/supabase-js';
  * Si preferís usar variables, copiá .env.example a .env.local.
  */
 const supabaseUrl =
-  process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://vouedymblcmranmccpjy.supabase.co';
+  process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 
 const supabaseAnonKey =
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-  'sb_publishable_EUH9ifNYpstq4vmYEya9-g_Erp_geVx';
+  '';
 
 // Fallo temprano y con un mensaje entendible en vez del error crudo de
 // Supabase ("supabaseUrl is required"), que rompia el build entero.

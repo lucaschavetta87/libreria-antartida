@@ -13,7 +13,7 @@ import ClientesCC from "../components/ClientesCC";
 import CierreCaja from "../components/CierreCaja";
 import GestionUsuarios from "../components/GestiondeUsuarios"; 
 import PedidosWeb from "../components/PedidosWeb";
-import GestionPortada from "../components/GestionPortada";
+
 import MercadoLibre from "../components/MercadoLibre";
 import { paddingContenido } from "../lib/ui";
 import { useToast } from "../components/ui/Avisos";
@@ -25,7 +25,7 @@ interface Venta { id: number; fecha?: string | null; total?: number | string | n
 
 type TabKey = "inicio" | "stock" | "ventas" | "ventas_mayoristas" | "pedidos_web" | "clientes" | "caja" | "usuarios" | "pagina_web" | "portada_web" | "mercadolibre";
 
-const APP_TITLE = "Pueblos del Mundo";
+const APP_TITLE = "Libreria - Antartida";
 
 export const dynamic = "force-dynamic";
 
@@ -97,7 +97,7 @@ export default function Home() {
     const userLow = user.trim().toLowerCase();
     const passTrim = pass.trim();
 
-    if ((userLow === "laindia" && passTrim === "laindia1234") || (userLow === "admin" && passTrim === "admin123")) {
+    if ((userLow === "antartida" && passTrim === "antartida1234") || (userLow === "admin" && passTrim === "admin123")) {
       setUsuarioActivo({
         nombre: "Administrador",
         username: "admin",
@@ -216,7 +216,7 @@ export default function Home() {
         </form>
 
         <p style={{ margin: 0, fontSize: "0.75rem", color: darkMode ? "rgba(255,255,255,0.45)" : "#64748b", textAlign: "center" }}>
-          Acceso interno · Distribuidora India
+          Acceso interno · Libreria - Antartida
         </p>
       </div>
     );
@@ -282,8 +282,8 @@ export default function Home() {
           {activeTab === "pagina_web" && (
             <div style={{ width: "100%", display: "flex", flexDirection: "column" }}>
               <iframe
-                src="https://distribuidoraindiaweb.vercel.app/"
-                title="Web Distribuidora India"
+                src="https://antartida.sistemasmendoza.com.ar"
+                title="Librería Antártida"
                 style={{
                   width: '100%',
                   height: isMobile ? 'calc(100vh - 90px)' : 'calc(100vh - 80px)',
@@ -323,9 +323,6 @@ export default function Home() {
                 <CierreCaja darkMode={darkMode} />
               )}
 
-              {activeTab === "portada_web" && tienePermiso("portada_web") && (
-                <GestionPortada darkMode={darkMode} theme={theme} isMobile={isMobile} />
-              )}
               {activeTab === "mercadolibre" && tienePermiso("mercadolibre") && (
                 <MercadoLibre darkMode={darkMode} />
               )}

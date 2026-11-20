@@ -726,7 +726,7 @@ export default function PedidosWeb({ darkMode = true, vendedorActual = '', vende
       doc.setFont("helvetica", "bold");
       doc.setFontSize(22);
       doc.setTextColor(30, 41, 59);
-      doc.text("DISTRIBUIDORA INDIA", 105, 25, { align: 'center' });
+      doc.text("Libreria Antártida", 105, 25, { align: 'center' });
 
       doc.setFontSize(14);
       doc.setFont("helvetica", "normal");
@@ -858,14 +858,14 @@ export default function PedidosWeb({ darkMode = true, vendedorActual = '', vende
         </head>
         <body>
           <div class="header">
-            <h1>DISTRIBUIDORA INDIA</h1>
+            <h1>Libreria Antártida</h1>
             <h2>GUÍA DE ENVÍO</h2>
           </div>
           <div class="divider"></div>
 
           <div class="remitente">
             <div class="remitente-titulo">Remitente</div>
-            <div class="remitente-nombre">Distribuidora India</div>
+            <div class="remitente-nombre">Libreria Antártida</div>
           </div>
 
           <div class="destino">
@@ -889,7 +889,7 @@ export default function PedidosWeb({ darkMode = true, vendedorActual = '', vende
           </div>
 
           <div class="footer">
-            Distribuidora India — Guía de envío
+            Libreria Antártida — Guía de envío
           </div>
         </body>
         <script>window.onload = function() { window.print(); window.close(); };<\/script>
@@ -1642,7 +1642,7 @@ export default function PedidosWeb({ darkMode = true, vendedorActual = '', vende
                     onClick={() => {
                       const ajustes = resumenAjustes(itemsTrabajo);
                       const aviso = ajustes.length ? `\n\nTe cuento que en tu pedido:\n- ${ajustes.join('\n- ')}\n\nTotal a abonar: $${totalFinalSel.toLocaleString('es-AR')}` : '';
-                      const texto = `Hola ${pedidoSeleccionado.nombre}, te escribo de Distribuidora India por tu pedido...${aviso}`;
+                      const texto = `Hola ${pedidoSeleccionado.nombre}, te escribo de Libreria Antártida por tu pedido...${aviso}`;
                       window.open(`https://wa.me/${pedidoSeleccionado.telefono.replace(/\D/g, '')}?text=${encodeURIComponent(texto)}`, '_blank');
                     }}
                     style={{ flex: 1, padding: '12px', backgroundColor: '#25d366', color: '#fff', border: 'none', borderRadius: '12px', fontWeight: 800, cursor: 'pointer' }}

@@ -390,7 +390,7 @@ export default function Ventas({ stock, setStock, ventas, setVentas, darkMode = 
     setCarrito(prevCarrito => prevCarrito.filter(c => claveCarrito(c) !== clave));
   };
 
-  // Comprobante del mostrador: encabezado DISTRIBUIDORA INDIA con día y hora,
+  // Comprobante del mostrador: encabezado Libreria Antártida con día y hora,
   // medio de pago, lista de productos con cantidad e importe y al final el
   // total. Sin subtotales ni descuentos. Sirve para emitir y para reimprimir.
   const imprimirTicketVenta = (datos: any) => {
@@ -444,7 +444,7 @@ export default function Ventas({ stock, setStock, ventas, setVentas, darkMode = 
         </head>
         <body>
           <div class="text-center">
-            <h3>DISTRIBUIDORA INDIA</h3>
+            <h3>Libreria Antártida</h3>
           </div>
           <div class="meta-row">
             <span>Fecha: ${fechaSolo}</span>

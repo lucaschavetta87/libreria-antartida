@@ -1,0 +1,14 @@
+node_modules
+.next
+Dockerfile
+docker-compose.yml
+README.md
+scripts
+*.sql
+*.md
+.env*
+.git
+.gitignore
+turbo.json
+yarn.lock
+# package-lock.json se necesita en la etapa de build

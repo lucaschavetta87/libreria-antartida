@@ -8,7 +8,7 @@ export default function Ticket({ orden }: { orden: any }) {
     <div className="ticket-imprimible" style={ticketVisual}>
       <div style={{ textAlign: 'center' }}>
         <Image src={logoControlCel} alt="Logo" width={60} height={60} />
-        <h4>Pueblos del Mundo</h4>
+        <h4>Libreria Antártida</h4>
         <p style={{ fontSize: '9px' }}>Catamarca 44 - Mendoza - Argentina</p>
       </div>
       <div style={divider}></div>

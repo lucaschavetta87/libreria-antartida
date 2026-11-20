@@ -1873,7 +1873,7 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
         docRef.setFont("helvetica", "bold");
         docRef.setFontSize(16);
         docRef.setTextColor(22, 163, 74);
-        docRef.text("Catálogo Mayorista Distribuidora India", pageWidth / 2, 16, { align: 'center' });
+        docRef.text("Catálogo Mayorista Libreria Antartida", pageWidth / 2, 16, { align: 'center' });
         docRef.setFontSize(11);
         docRef.setTextColor(100, 116, 139);
         docRef.text(`Lista de precios de ${categoriaNombre} - Fecha: ${fechaStr}`, pageWidth / 2, 23, { align: 'center' });
@@ -2052,7 +2052,7 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
         docRef.setFont('helvetica', 'bold');
         docRef.setFontSize(15);
         docRef.setTextColor(22, 163, 74);
-        docRef.text('Catálogo Mayorista Distribuidora India', W / 2, 12, { align: 'center' });
+        docRef.text('Catálogo Mayorista Libreria Antartida', W / 2, 12, { align: 'center' });
         docRef.setFontSize(10);
         docRef.setTextColor(100, 116, 139);
         docRef.text(`Lista de precios${grupoTitulo ? ` › ${grupoTitulo}` : ''} - Fecha: ${fechaStr}`, W / 2, 18, { align: 'center' });
@@ -2142,7 +2142,7 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(7.5);
         doc.setTextColor(148, 163, 184);
-        doc.text('Catálogo Mayorista Distribuidora India', M, H - 6);
+        doc.text('Catálogo Mayorista Libreria Antartida', M, H - 6);
         doc.text(`Página ${p} de ${totalPaginas}`, W - M, H - 6, { align: 'right' });
       }
 

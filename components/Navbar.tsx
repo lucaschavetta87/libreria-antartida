@@ -39,8 +39,6 @@ export const SECCIONES = [
   {
     label: 'Web',
     items: [
-      { key: 'pagina_web', label: 'Página Web', icono: 'Web' as const, permiso: null },
-      { key: 'portada_web', label: 'Control Portada', icono: 'Portada' as const, permiso: 'portada_web' },
       { key: 'mercadolibre', label: 'MercadoLibre', icono: 'Web' as const, permiso: 'mercadolibre' }
     ]
   },
@@ -130,7 +128,7 @@ export default function Navbar({ activeTab, setActiveTab, darkMode, setDarkMode,
       {/* Marca */}
       <button
         onClick={() => setActiveTab('inicio')}
-        title="Pueblos del Mundo"
+        title="Libreria - Antartida"
         style={{
           background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center',
           gap: 10, padding: isCollapsed ? 0 : '4px', justifyContent: isCollapsed ? 'center' : 'flex-start', marginBottom: 14
@@ -145,7 +143,7 @@ export default function Navbar({ activeTab, setActiveTab, darkMode, setDarkMode,
         </span>
         {!isCollapsed && (
           <span style={{ textAlign: 'left', minWidth: 0 }}>
-            <span style={{ color: '#fff', fontSize: '0.92rem', lineHeight: 1.15, display: 'block', fontWeight: 800 }}>Pueblos del Mundo</span>
+            <span style={{ color: '#fff', fontSize: '0.92rem', lineHeight: 1.15, display: 'block', fontWeight: 800 }}>Libreria - Antartida</span>
             <span style={{ fontSize: '0.6rem', color: SUPERFICIE_MARCA.textoTenue, letterSpacing: '0.06em', textTransform: 'uppercase', fontWeight: 700 }}>Sistema de Gestión</span>
           </span>
         )}

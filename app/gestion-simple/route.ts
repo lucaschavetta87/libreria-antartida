@@ -158,7 +158,7 @@ export async function GET() {
 function intentarLogin() {
   var u = document.getElementById('loginUser').value.trim().toLowerCase();
   var p = document.getElementById('loginPass').value.trim();
-  if ((u === 'laindia' && p === 'laindia1234') || (u === 'admin' && p === 'admin123')) {
+  if ((u === 'antartida' && p === 'antartida1234') || (u === 'admin' && p === 'admin123')) {
     localStorage.setItem('gs_auth', '1');
     document.getElementById('loginScreen').className = 'login-screen hidden';
     cargarProductos();

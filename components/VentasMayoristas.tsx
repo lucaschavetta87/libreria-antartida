@@ -409,7 +409,7 @@ export default function VentasMayoristas({ stock, setStock, ventas, setVentas, d
     if (sugerencias.length > 0) ejecutarAgregadoDirecto(sugerencias[0], cantidadSeleccionada);
   };
 
-  // Comprobante: encabezado DISTRIBUIDORA INDIA con día y hora, medio de pago,
+  // Comprobante: encabezado Libreria Antártida con día y hora, medio de pago,
   // cliente si corresponde, lista de productos con cantidad e importe y al
   // final el total. Si quedó en Cuenta Corriente agrega el saldo. Sirve para
   // emitir y para la reimpresión del historial.
@@ -468,7 +468,7 @@ export default function VentasMayoristas({ stock, setStock, ventas, setVentas, d
         </head>
         <body>
           <div class="text-center">
-            <h3>DISTRIBUIDORA INDIA</h3>
+            <h3>Libreria Antártida</h3>
           </div>
           <div class="meta-row">
             <span>Fecha: ${fechaSolo}</span>

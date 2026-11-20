@@ -4,6 +4,8 @@ import path from 'node:path';
 const nextConfig = {
   reactStrictMode: true,
 
+  output: 'standalone',
+
   // Fijamos la raiz del workspace en esta carpeta.
   //
   // Sin esto, Next detecta varios package-lock.json (el repositorio de git esta

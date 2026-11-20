@@ -226,7 +226,7 @@ export function armarHTMLTicket(datos: {
         </head>
         <body>
           <div class="text-center">
-            <h3>DISTRIBUIDORA INDIA</h3>
+            <h3>Libreria Antártida</h3>
             <div class="meta">${escapear(datos.fecha)}</div>
             <div class="meta">PAGO: ${escapear(String(datos.metodoPago || '').toUpperCase())}</div>
             ${datos.cliente ? `<div class="meta">CLIENTE: ${escapear(String(datos.cliente).toUpperCase())}</div>` : ''}
