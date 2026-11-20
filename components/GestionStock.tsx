@@ -14,26 +14,17 @@ import MenuBotonCategorias from './MenusPDF';
 import MenuCatalogoCompleto, { OpcionesCatalogoCompleto } from './MenuCatalogoCompleto';
 import ModalCategoria from './ModalCategoria';
 import OjoVisibilidad, { TipoOcultable, ocultaEnWeb } from './ui/OjoVisibilidad';
-import {
-  PRINCIPALES_POR_DEFECTO, calcularPrincipales, esPrincipal as esCatPrincipal,
-  generarIdCategoria, leerPrincipalesLocal, guardarPrincipalesLocal, limpiarPrincipalesLocal
-} from '../lib/categorias';
+import { generarIdCategoria, ordenarCategorias } from '../lib/categorias';
 import { normalizarCodigo, barcodeSvg } from '../lib/codigobarras';
 import { dibujarEtiquetasEnDoc } from '../lib/etiquetasPdf';
 import { prepararImagenRedimensionada, subirArchivoAStorage } from '../lib/imageUtils';
 import { useToast } from './ui/Avisos';
 
-const CATEGORIAS_PRINCIPALES = [
+const CATEGORIAS_DEFAULT = [
   { id: 'aromanza', label: 'Aromanza' },
   { id: 'sagrada_madre', label: 'Sagrada Madre' },
   { id: 'ganesha', label: 'Aromas Ganesha' },
-  { id: 'iluminarte', label: 'Iluminarte' }
-];
-
-const IDS_PRINCIPALES = CATEGORIAS_PRINCIPALES.map(c => c.id);
-
-const CATEGORIAS_DEFAULT = [
-  ...CATEGORIAS_PRINCIPALES,
+  { id: 'iluminarte', label: 'Iluminarte' },
   { id: 'bazar_banos', label: 'Bazar Baños' },
   { id: 'carbon_vegetal', label: 'Carbón Vegetal Encendido Rápido' },
   { id: 'cuencos_armonizadores', label: 'Cuencos y Armonizadores' },
@@ -213,7 +204,7 @@ function ModalImportarExcel({ isOpen, onClose, categorias, stock, setStock, dark
 
   const manejarCambioCategoria = async (val: string) => {
     if (val === 'NUEVA') {
-      const nombre = window.prompt('Nombre de la nueva categoría principal:');
+      const nombre = window.prompt('Nombre de la nueva categoría:');
       if (nombre && nombre.trim()) {
         const id = nombre.trim().toLowerCase().replace(/\s+/g, '_').replace(/[^\w-]/g, '');
         const { data, error } = await supabase.from('categorias').insert([{ id, label: nombre.trim() }]).select().single();
@@ -233,7 +224,7 @@ function ModalImportarExcel({ isOpen, onClose, categorias, stock, setStock, dark
 
   const manejarCambioSubcategoria = async (val: string) => {
     if (val === 'NUEVA') {
-      if (!categoriaSeleccionada) return toast.avisar("Seleccioná una categoría principal primero.", 'alerta');
+      if (!categoriaSeleccionada) return toast.avisar("Seleccioná una categoría primero.", 'alerta');
       const nombre = window.prompt('Nombre de la nueva subcategoría:');
       if (nombre && nombre.trim()) {
         const { data, error } = await supabase.from('subcategorias').insert([{ categoria: categoriaSeleccionada, nombre: nombre.trim() }]).select().single();
@@ -253,7 +244,7 @@ function ModalImportarExcel({ isOpen, onClose, categorias, stock, setStock, dark
 
   const manejarCambioSubsub = async (val: string) => {
     if (val === 'NUEVA') {
-      if (!categoriaSeleccionada) return toast.avisar("Seleccioná una categoría principal primero.", 'alerta');
+      if (!categoriaSeleccionada) return toast.avisar("Seleccioná una categoría primero.", 'alerta');
       if (!subcategoriaSeleccionada) return toast.avisar("Seleccioná una subcategoría primero.", 'alerta');
       const nombre = window.prompt('Nombre de la nueva subcarpeta:');
       if (nombre && nombre.trim()) {
@@ -1284,11 +1275,10 @@ function ProductoCard({ item, darkMode, seleccionado, onToggle, onOpen, onEdit, 
 function PanelCarpetas({
   darkMode, categorias, sel, seleccionar, conteos, totalStock, subsDe, subsubsDe,
   onCrearSub, onCrearSubSub, onRenombrarSub, onEliminarSub, onRenombrarSubSub, onEliminarSubSub, onGestionar, onDropProductos, onDropCarpeta,
-  onRenombrarCategoria, onEliminarCategoria, principalesIds, onEditarCategoria, onNuevaPrincipal,
+  onRenombrarCategoria, onEliminarCategoria, onEditarCategoria, onNuevaCategoria,
   onAlternarCategoria, onAlternarSub, onAlternarSubSub
 }: any) {
   const [abiertas, setAbiertas] = useState<Record<string, boolean>>({});
-  const [mostrarOtras, setMostrarOtras] = useState(false);
   const [creandoEn, setCreandoEn] = useState<string | null>(null);
   const [nombreNuevo, setNombreNuevo] = useState('');
   const [hoverDrop, setHoverDrop] = useState<string | null>(null);
@@ -1314,13 +1304,6 @@ function PanelCarpetas({
     hover: darkMode ? 'rgba(255,255,255,0.04)' : '#f1f5f9',
     input: darkMode ? '#0f172a' : '#ffffff',
   };
-
-  const principales = categorias
-    .filter((c: any) => (principalesIds || []).includes(String(c.id).toLowerCase()))
-    .sort((a: any, b: any) => principalesIds.indexOf(String(a.id).toLowerCase()) - principalesIds.indexOf(String(b.id).toLowerCase()));
-  const principalesFinal = principales;
-  const otras = categorias.filter((c: any) => !(principalesIds || []).includes(String(c.id).toLowerCase()))
-    .sort((a: any, b: any) => String(a.label).localeCompare(String(b.label)));
 
   const filaBase = (activo: boolean): React.CSSProperties => ({
     display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 10px', borderRadius: '8px',
@@ -1410,19 +1393,12 @@ function PanelCarpetas({
             <span>{estaAbierta ? '📂' : '📁'}</span>
             <OjoVisibilidad visible={!ocultaEnWeb(cat)} tipo="categoria" oscuro={darkMode} onToggle={() => onAlternarCategoria(cat)} />
             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', ...estiloOculta(cat) }}>{cat.label}</span>
-            {(principalesIds || []).includes(catId) && (
-              <span title="Categoría principal" style={{
-                fontSize: '0.62rem', fontWeight: 800, color: '#7c3aed', flexShrink: 0,
-                background: 'rgba(139,92,246,0.14)', border: '1px solid rgba(139,92,246,0.4)',
-                padding: '1px 6px', borderRadius: 999
-              }}>★</span>
-            )}
             {accionesFila(
               catId + '|',
               catActiva,
               () => onEditarCategoria(cat),
               () => onEliminarCategoria(catId, cat.label, info.total),
-              'Editar categoría (nombre, imagen y principal)',
+              'Editar categoría (nombre, imagen)',
               'Eliminar categoría y subcarpetas'
             ) || contador(info.total)}
           </div>
@@ -1486,33 +1462,20 @@ function PanelCarpetas({
         <span>🗂️</span><span>Todo el stock</span>{contador(totalStock)}
       </div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, padding: '14px 10px 6px' }}>
-        <span style={{ fontSize: '0.72rem', fontWeight: 800, color: t.subtext }}>Marcas principales</span>
+        <span style={{ fontSize: '0.72rem', fontWeight: 800, color: t.subtext }}>Categorías</span>
         <button
-          onClick={onNuevaPrincipal}
-          title="Agregar una categoría principal nueva"
+          onClick={onNuevaCategoria}
+          title="Agregar una categoría nueva"
           style={{
             display: 'flex', alignItems: 'center', gap: 4, padding: '4px 8px', borderRadius: 8,
             border: `1px solid ${t.border}`, background: 'transparent', color: t.subtext,
             cursor: 'pointer', fontSize: '0.7rem', fontWeight: 800
           }}
         >
-          + Principal
+          + Nueva categoría
         </button>
       </div>
-      {principalesFinal.length === 0 && (
-        <div style={{ padding: '8px 10px', fontSize: '0.78rem', color: t.subtext }}>
-          Todavía no hay categorías principales.
-        </div>
-      )}
-      {principalesFinal.map(renderCarpeta)}
-      {otras.length > 0 && (
-        <>
-          <div onClick={() => setMostrarOtras(v => !v)} style={{ fontSize: '0.72rem', fontWeight: 800, color: t.subtext, padding: '14px 10px 6px', cursor: 'pointer', display: 'flex', gap: '6px' }}>
-            <span>{mostrarOtras ? '▼' : '▶'}</span> Otras categorías ({otras.length})
-          </div>
-          {mostrarOtras && otras.map(renderCarpeta)}
-        </>
-      )}
+      {(categorias || []).map(renderCarpeta)}
       <button onClick={onGestionar} style={{ marginTop: '16px', width: '100%', padding: '10px 12px', borderRadius: '10px', border: `1px solid ${t.border}`, background: 'transparent', color: t.text, fontWeight: 700, cursor: 'pointer', fontSize: '0.85rem' }}>
         ⚙️ Gestionar categorías
       </button>
@@ -1543,9 +1506,8 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
   const [opcionesCatalogo, setOpcionesCatalogo] = useState<OpcionesCatalogoCompleto>({ incluirSinStock: true, incluirVariedades: true, incluirCodigos: true, incluirOcultos: false });
   const [generandoCatalogo, setGenerandoCatalogo] = useState<'pdf' | 'excel' | null>(null);
 
-  // --- Categorías principales editables ---
-  const [modalCategoria, setModalCategoria] = useState<{ id: string; label: string; imagen_url?: string | null; es_principal?: boolean | null } | null | undefined>(undefined);
-  const [soportaEsPrincipal, setSoportaEsPrincipal] = useState(true);
+  // --- Categoría editable (nombre / imagen) ---
+  const [modalCategoria, setModalCategoria] = useState<{ id: string; label: string; imagen_url?: string | null } | null | undefined>(undefined);
   // La columna `visible_web` es la que usa el ojito para ocultar cosas en la web
   // pública. `null` = todavía no se pudo comprobar, `false` = no existe en
   // Supabase (falta correr scripts/visibilidad_web.sql), `true` = disponible.
@@ -1554,14 +1516,7 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
 
   const [categorias, setCategorias] = useState<{ id: string; label: string; imagen_url?: string | null }[]>(CATEGORIAS_DEFAULT);
 
-  // Ids de las categorías principales, calculadas desde los datos de Supabase.
-  // Mientras la columna es_principal no exista en la base, se usa el respaldo local.
-  const principalesIds = useMemo(() => {
-    const marcadas = calcularPrincipales(categorias as any, PRINCIPALES_POR_DEFECTO);
-    if (soportaEsPrincipal) return marcadas;
-    const local = leerPrincipalesLocal();
-    return local && local.length > 0 ? local : marcadas;
-  }, [categorias, soportaEsPrincipal]);
+
   const [subcategoriasDB, setSubcategoriasDB] = useState<{ id: any; categoria: string; nombre: string }[]>([]);
   const [subsLocales, setSubsLocales] = useState<{ id: any; categoria: string; nombre: string }[]>([]);
   const [subsubsDB, setSubsubsDB] = useState<{ id: any; categoria: string; subcategoria: string; nombre: string }[]>([]);
@@ -1610,18 +1565,16 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
   // para que se pueda probar sin romper nada.
   const cargarCategorias = async () => {
     try {
-      const completas = await supabase.from('categorias').select('id, label, orden, imagen_url, es_principal, visible_web');
+      const completas = await supabase.from('categorias').select('id, label, orden, imagen_url, visible_web');
       if (!completas.error && completas.data) {
         setCategorias(completas.data as any);
-        setSoportaEsPrincipal(true);
         setSoportaVisibleWeb(true);
         return;
       }
 
-      const sinOjito = await supabase.from('categorias').select('id, label, orden, imagen_url, es_principal');
+      const sinOjito = await supabase.from('categorias').select('id, label, orden, imagen_url');
       if (!sinOjito.error && sinOjito.data) {
         setCategorias(sinOjito.data as any);
-        setSoportaEsPrincipal(true);
         setSoportaVisibleWeb(false);
         toast.avisar(
           'El ojito de visibilidad todavía no está disponible: falta la columna visible_web en Supabase (ejecutá scripts/visibilidad_web.sql).',
@@ -1636,12 +1589,6 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
         setCategorias(data as any);
         setSoportaVisibleWeb(data.length > 0 && typeof data[0] === 'object' && 'visible_web' in data[0]);
       }
-      setSoportaEsPrincipal(false);
-      toast.avisar(
-        'Las categorías principales se guardan solo en esta computadora hasta que se agregue la columna es_principal en Supabase.',
-        'alerta',
-        9000
-      );
     } catch (err) { console.error('Error al cargar categorías:', err); }
   };
 
@@ -2535,10 +2482,10 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
 
 
   // ========================================================================
-  // Categorías: editar (nombre / imagen / principal) y crear una nueva
+  // Categorías: editar (nombre / imagen) y crear una nueva
   // ========================================================================
   const guardarCategoria = async (datos: {
-    id?: string; label: string; imagen_url: string | null; es_principal: boolean; archivo?: File | null;
+    id?: string; label: string; imagen_url: string | null; archivo?: File | null;
   }) => {
     const label = datos.label.trim();
     if (!label) return;
@@ -2569,33 +2516,19 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
         }
 
         const payload: any = { id: nuevoId, label, imagen_url: imagenFinal };
-        if (soportaEsPrincipal) payload.es_principal = datos.es_principal;
         const { error } = await supabase.from('categorias').insert([payload]);
         if (error) throw error;
 
-        if (!soportaEsPrincipal && datos.es_principal) {
-          guardarPrincipalesLocal([...leerPrincipalesLocal() || PRINCIPALES_POR_DEFECTO, nuevoId]);
-        }
         await cargarCategorias();
         setModalCategoria(undefined);
-        toast.exito(`Categoría "${label}" creada${datos.es_principal ? ' como principal' : ''}.`);
+        toast.exito(`Categoría "${label}" creada.`);
         return;
       }
 
       // --- Edición ---
       const updates: any = { label, imagen_url: imagenFinal };
-      if (soportaEsPrincipal) updates.es_principal = datos.es_principal;
       const { error } = await supabase.from('categorias').update(updates).eq('id', datos.id);
       if (error) throw error;
-
-      if (!soportaEsPrincipal) {
-        const actuales = leerPrincipalesLocal() || PRINCIPALES_POR_DEFECTO;
-        guardarPrincipalesLocal(
-          datos.es_principal
-            ? Array.from(new Set([...actuales, datos.id!.toLowerCase()]))
-            : actuales.filter((id) => id !== datos.id!.toLowerCase())
-        );
-      }
 
       await cargarCategorias();
       setModalCategoria(undefined);
@@ -2608,10 +2541,10 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
   };
 
   const abrirEdicionCategoria = (cat: any) => {
-    setModalCategoria({ id: String(cat.id), label: cat.label || '', imagen_url: cat.imagen_url || '', es_principal: Boolean(cat.es_principal) });
+    setModalCategoria({ id: String(cat.id), label: cat.label || '', imagen_url: cat.imagen_url || '' });
   };
 
-  const abrirNuevaPrincipal = () => setModalCategoria(null);
+  const abrirNuevaCategoria = () => setModalCategoria(null);
 
   const obtenerLabelCategoria = (idCat: string) => {
     if (!idCat) return '⚠️ Sin Categoría';
@@ -2961,10 +2894,7 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
     } catch (err: any) { toast.error('Error: ' + err.message); }
   };
 
-  const categoriasOrdenadas = [
-    ...principalesIds.map(id => categorias.find(c => String(c.id).toLowerCase() === id)).filter((c): c is any => Boolean(c)),
-    ...categorias.filter(c => !principalesIds.includes(String(c.id).toLowerCase())).sort((a, b) => String(a.label).localeCompare(String(b.label)))
-  ];
+  const categoriasOrdenadas = ordenarCategorias(categorias);
 
   // Se calcula acá (no antes) porque construirCatalogoCompleto usa categoriasOrdenadas.
   const previewCatalogoCompleto = construirCatalogoCompleto(opcionesCatalogo);
@@ -3104,7 +3034,6 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
           icono="🖨️"
           colorBoton="#7c3aed"
           categorias={categoriasOrdenadas}
-          principalesIds={principalesIds}
           mostrarSubs={true}
           subsDe={subsDe}
           subsubsDe={subsubsDe}
@@ -3123,7 +3052,6 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
           icono="📄"
           colorBoton="#ef4444"
           categorias={categoriasOrdenadas}
-          principalesIds={principalesIds}
           mostrarSubs={true}
           subsDe={subsDe}
           subsubsDe={subsubsDe}
@@ -3159,7 +3087,7 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
       <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start', flexDirection: isMobile ? 'column' : 'row', width: '100%' }}>
         {(!isMobile || panelAbierto) && (
           <aside style={panelStyle}>
-            <PanelCarpetas darkMode={darkMode} categorias={categorias} sel={sel} seleccionar={seleccionar} conteos={conteos} totalStock={stock?.length || 0} subsDe={subsDe} subsubsDe={subsubsDe} onCrearSub={crearSubcategoria} onCrearSubSub={crearSubsubcategoria} onRenombrarSub={renombrarSubcategoria} onEliminarSub={eliminarSubcategoria} onRenombrarSubSub={renombrarSubsubcategoria} onEliminarSubSub={eliminarSubsubcategoria} onDropProductos={moverProductos} onDropCarpeta={moverCarpeta} onGestionar={() => setMostrarModalCategorias(true)} onRenombrarCategoria={renombrarCategoria} onEliminarCategoria={eliminarCategoriaConHijos} principalesIds={principalesIds} onEditarCategoria={abrirEdicionCategoria} onNuevaPrincipal={abrirNuevaPrincipal} onAlternarCategoria={alternarVisibilidadCategoria} onAlternarSub={alternarVisibilidadSub} onAlternarSubSub={alternarVisibilidadSubSub} />
+            <PanelCarpetas darkMode={darkMode} categorias={categorias} sel={sel} seleccionar={seleccionar} conteos={conteos} totalStock={stock?.length || 0} subsDe={subsDe} subsubsDe={subsubsDe} onCrearSub={crearSubcategoria} onCrearSubSub={crearSubsubcategoria} onRenombrarSub={renombrarSubcategoria} onEliminarSub={eliminarSubcategoria} onRenombrarSubSub={renombrarSubsubcategoria} onEliminarSubSub={eliminarSubsubcategoria} onDropProductos={moverProductos} onDropCarpeta={moverCarpeta} onGestionar={() => setMostrarModalCategorias(true)} onRenombrarCategoria={renombrarCategoria} onEliminarCategoria={eliminarCategoriaConHijos} onEditarCategoria={abrirEdicionCategoria} onNuevaCategoria={abrirNuevaCategoria} onAlternarCategoria={alternarVisibilidadCategoria} onAlternarSub={alternarVisibilidadSub} onAlternarSubSub={alternarVisibilidadSubSub} />
           </aside>
         )}
 

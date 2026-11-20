@@ -8,9 +8,8 @@ import { Icono } from './Icons';
 // -----------------------------------------------------------------------------
 // Permite:
 //   • cambiar el nombre
-//   • cambiar la imagen (la que se ve en la web si la categoría es principal)
-//   • marcar o desmarcar como CATEGORÍA PRINCIPAL
-//   • crear una categoría nueva ya marcada como principal
+//   • cambiar la imagen
+//   • crear una categoría nueva
 // =============================================================================
 
 export default function ModalCategoria({
@@ -20,15 +19,15 @@ export default function ModalCategoria({
   onClose,
   onGuardar
 }: {
-  categoria?: { id: string; label: string; imagen_url?: string | null; es_principal?: boolean | null } | null;
+  categoria?: { id: string; label: string; imagen_url?: string | null } | null;
   darkMode?: boolean;
   subiendo?: boolean;
   onClose: () => void;
-  onGuardar: (datos: { id?: string; label: string; imagen_url: string | null; es_principal: boolean; archivo?: File | null }) => void;
+  onGuardar: (datos: { id?: string; label: string; imagen_url: string | null; archivo?: File | null }) => void;
 }) {
   const [nombre, setNombre] = useState(categoria?.label || '');
   const [imagenUrl, setImagenUrl] = useState(categoria?.imagen_url || '');
-  const [principal, setPrincipal] = useState(Boolean(categoria?.es_principal));
+
   const [imagenArchivo, setImagenArchivo] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState(categoria?.imagen_url || '');
   const archivoRef = useRef<HTMLInputElement>(null);
@@ -62,7 +61,6 @@ export default function ModalCategoria({
       id: categoria?.id,
       label: nombre.trim(),
       imagen_url: imagenArchivo ? '' : (imagenUrl.trim() || null),
-      es_principal: principal,
       archivo: imagenArchivo
     });
   };
@@ -178,38 +176,6 @@ export default function ModalCategoria({
           placeholder="Nombre de la categoría"
           style={{ ...inputStyle, marginBottom: 16 }}
         />
-
-        {/* Categoría principal */}
-        <button
-          type="button"
-          onClick={() => setPrincipal((v) => !v)}
-          aria-pressed={principal}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 12, width: '100%', textAlign: 'left',
-            padding: '13px 14px', borderRadius: 13, cursor: 'pointer',
-            border: `1px solid ${principal ? '#8b5cf6' : t.border}`,
-            background: principal ? 'rgba(139,92,246,0.10)' : t.bg
-          }}
-        >
-          <span style={{
-            width: 22, height: 22, borderRadius: 7, flexShrink: 0,
-            border: `2px solid ${principal ? '#8b5cf6' : t.border}`,
-            background: principal ? '#8b5cf6' : 'transparent',
-            color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem'
-          }}>
-            {principal && '✓'}
-          </span>
-          <span style={{ minWidth: 0 }}>
-            <span style={{ display: 'block', fontWeight: 700, fontSize: '0.9rem', color: t.text }}>
-              Categoría principal
-            </span>
-            <span style={{ display: 'block', fontSize: '0.76rem', color: t.subtext }}>
-              {principal
-                ? 'Se destaca arriba en el panel y su imagen es la de la web'
-                : 'Queda entre las demás categorías'}
-            </span>
-          </span>
-        </button>
 
         {/* Acciones */}
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>

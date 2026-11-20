@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
-import logoControlCel from '../assets/logo.png';
 import { Icono } from './Icons';
 import { SUPERFICIE_MARCA } from '../lib/theme';
 
@@ -139,7 +138,7 @@ export default function Navbar({ activeTab, setActiveTab, darkMode, setDarkMode,
           borderRadius: 12, padding: 7, display: 'flex', alignItems: 'center', justifyContent: 'center',
           boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.10)'
         }}>
-          <Image src={logoControlCel} alt="Logo" width={26} height={26} style={{ objectFit: 'contain' }} />
+          <Image src="/logo.png" alt="Logo" width={26} height={26} style={{ objectFit: 'contain' }} />
         </span>
         {!isCollapsed && (
           <span style={{ textAlign: 'left', minWidth: 0 }}>

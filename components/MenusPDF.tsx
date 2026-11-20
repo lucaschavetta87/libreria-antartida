@@ -9,11 +9,10 @@ type Carpeta = { id: string; label: string };
 type SubCarpeta = { key: string; label: string; count?: number };
 type ConteoCategoria = { total?: number };
 
-// Menú desplegable para generar PDFs: muestra primero las categorías principales
-// y después las demás. Con mostrarSubs=true también despliega subcategorías y
-// sub-subcategorías para imprimir solo lo elegido.
+// Menú desplegable para generar PDFs: muestra las categorías. Con mostrarSubs=true
+// también despliega subcategorías y sub-subcategorías para imprimir solo lo elegido.
 export default function MenuBotonCategorias({
-  darkMode, label, icono = '🖨️', colorBoton = '#7c3aed', categorias = [], principalesIds = [],
+  darkMode, label, icono = '🖨️', colorBoton = '#7c3aed', categorias = [],
   mostrarSubs = true, subsDe, subsubsDe, conteos = {}, extra = null, onElegir, btnBaseStyle,
   accionCarpeta = 'Imprimir todos los códigos de', accionRuta = 'Imprimir los códigos de', menuStyle
 }: {
@@ -22,7 +21,6 @@ export default function MenuBotonCategorias({
   icono?: string;
   colorBoton?: string;
   categorias: Carpeta[];
-  principalesIds: string[];
   mostrarSubs?: boolean;
   subsDe?: (catId: string) => SubCarpeta[];
   subsubsDe?: (catId: string, subKey: string) => SubCarpeta[];
@@ -38,7 +36,6 @@ export default function MenuBotonCategorias({
   const [abierto, setAbierto] = useState(false);
   const [expCats, setExpCats] = useState<Record<string, boolean>>({});
   const [expSubs, setExpSubs] = useState<Record<string, boolean>>({});
-  const [mostrarOtras, setMostrarOtras] = useState(false);
   const [hover, setHover] = useState<string | null>(null);
   const contenedorRef = useRef<HTMLDivElement>(null);
 
@@ -65,11 +62,7 @@ export default function MenuBotonCategorias({
     input: darkMode ? '#0f172a' : '#ffffff'
   };
 
-  const principales = categorias.filter(c => principalesIds.includes(String(c.id).toLowerCase()));
-  const principalesOrdenadas = principalesIds
-    .map(id => principales.find(c => String(c.id).toLowerCase() === id))
-    .filter((c): c is Carpeta => Boolean(c));
-  const otras = categorias.filter(c => !principalesIds.includes(String(c.id).toLowerCase()));
+  const todas = categorias;
 
   const elegir = (ruta: Ruta) => { setAbierto(false); onElegir(ruta); };
 
@@ -164,12 +157,6 @@ export default function MenuBotonCategorias({
     );
   };
 
-  const encabezado = (texto: string) => (
-    <div style={{ fontSize: '0.68rem', fontWeight: 800, color: t.subtext, textTransform: 'uppercase', letterSpacing: '0.05em', padding: '10px 8px 4px' }}>
-      {texto}
-    </div>
-  );
-
   return (
     <div ref={contenedorRef} style={{ position: 'relative', display: 'inline-block' }}>
       <button
@@ -207,26 +194,9 @@ export default function MenuBotonCategorias({
             </>
           )}
 
-          {principalesOrdenadas.length > 0 && encabezado('Marcas principales')}
-          {principalesOrdenadas.map(renderCarpeta)}
-
-          {otras.length > 0 && (
+          {(todas || []).length > 0 && (
             <>
-              <div
-                onClick={() => setMostrarOtras(v => !v)}
-                onMouseEnter={() => setHover('__otras')}
-                onMouseLeave={() => setHover(null)}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: '7px', padding: '9px 8px',
-                  cursor: 'pointer', fontSize: '0.72rem', fontWeight: 800, color: t.subtext,
-                  textTransform: 'uppercase', letterSpacing: '0.05em', borderRadius: '8px',
-                  backgroundColor: hover === '__otras' ? t.hover : 'transparent'
-                }}
-              >
-                <span style={{ width: '14px', fontSize: '0.62rem' }}>{mostrarOtras ? '▼' : '▶'}</span>
-                Otras categorías ({otras.length})
-              </div>
-              {mostrarOtras && otras.map(renderCarpeta)}
+              {(todas || []).map(renderCarpeta)}
             </>
           )}
         </div>

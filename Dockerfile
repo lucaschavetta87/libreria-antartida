@@ -1,22 +1,41 @@
+# syntax=docker/dockerfile:1
+
+# --- dependencias -------------------------------------------------------
+FROM node:20-alpine AS deps
+WORKDIR /app
+COPY package.json package-lock.json ./
+# El build de Next necesita TypeScript y el resto de devDependencies.
+RUN npm ci --no-audit --no-fund
+
+# --- build --------------------------------------------------------------
 FROM node:20-alpine AS builder
 WORKDIR /app
-
-# Instalar dependencias
-COPY package.json package-lock.json ./
-RUN npm ci --omit=dev
-
-# Build de la aplicación Next.js con output standalone
+COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-RUN npx next build
 
-# Etapa final: servir con NGINX (muy liviano)
-FROM nginx:alpine AS runner
-COPY --from=builder /app/.next/standalone /usr/share/nginx/html
-COPY --from=builder /app/.next/static /usr/share/nginx/html/static
-COPY --from=builder /app/public /usr/share/nginx/html/public
+# Next.js inlinea NEXT_PUBLIC_* en el bundle en el momento del build.
+ARG NEXT_PUBLIC_SUPABASE_URL
+ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
+ENV NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL} \
+    NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY} \
+    NEXT_TELEMETRY_DISABLED=1
 
-# Exponer el puerto 80
-EXPOSE 80
+RUN npm run build
 
-# Iniciar NGINX
-CMD ["nginx", "-g", "daemon off;"]
+# --- runtime ------------------------------------------------------------
+FROM node:20-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production \
+    NEXT_TELEMETRY_DISABLED=1 \
+    PORT=3000 \
+    HOSTNAME=0.0.0.0
+
+COPY --from=builder /app/public ./public
+COPY --from=builder --chown=node:node /app/.next/standalone ./
+COPY --from=builder --chown=node:node /app/.next/static ./.next/static
+
+USER node
+EXPOSE 3000
+
+# Con output: 'standalone', Next genera server.js (no sirve con NGINX).
+CMD ["node", "server.js"]
