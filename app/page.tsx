@@ -175,7 +175,7 @@ export default function Home() {
               width: "56px", height: "56px", margin: "0 auto 14px", borderRadius: "16px",
               background: "linear-gradient(180deg, #4f46e5 0%, #6366f1 100%)",
               display: "flex", alignItems: "center", justifyContent: "center", fontSize: "26px"
-            }}>🕉️</div>
+            }}>📚</div>
 
             <h1 style={{ fontWeight: 800, margin: "0 0 4px", fontSize: isMobile ? "1.35rem" : "1.6rem", color: theme.text }}>{APP_TITLE}</h1>
             <p style={{ margin: 0, fontSize: "0.82rem", color: theme.subtext }}>Sistema de gestión</p>
@@ -216,7 +216,7 @@ export default function Home() {
         </form>
 
         <p style={{ margin: 0, fontSize: "0.75rem", color: darkMode ? "rgba(255,255,255,0.45)" : "#64748b", textAlign: "center" }}>
-          Acceso interno · Libreria - Antartida
+          Uso interno - Base de datos SistemasMendoza - ControlCel
         </p>
       </div>
     );
@@ -234,6 +234,7 @@ export default function Home() {
           isCollapsed={isSidebarCollapsed} 
           setIsCollapsed={setIsSidebarCollapsed}
           usuarioActivo={usuarioActivo}
+          onLogout={() => { setIsAuthenticated(false); setUsuarioActivo(null); }}
         />
       )}
 

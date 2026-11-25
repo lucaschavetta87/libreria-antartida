@@ -13,6 +13,7 @@ interface NavbarProps {
   isCollapsed: boolean;
   setIsCollapsed: (val: boolean) => void;
   usuarioActivo: any | null;
+  onLogout?: () => void;
 }
 
 // Secciones del sistema. Cada item declara su icono y el permiso necesario
@@ -62,7 +63,7 @@ export function filtrarSecciones(usuarioActivo: any | null) {
     .filter((sec) => sec.items.length > 0);
 }
 
-export default function Navbar({ activeTab, setActiveTab, darkMode, setDarkMode, isCollapsed, setIsCollapsed, usuarioActivo }: NavbarProps) {
+export default function Navbar({ activeTab, setActiveTab, darkMode, setDarkMode, isCollapsed, setIsCollapsed, usuarioActivo, onLogout }: NavbarProps) {
   const [hoveredTab, setHoveredTab] = useState<string | null>(null);
   const secciones = filtrarSecciones(usuarioActivo);
 
@@ -214,6 +215,20 @@ export default function Navbar({ activeTab, setActiveTab, darkMode, setDarkMode,
             </span>
           </div>
         )}
+
+        <button
+          onClick={() => onLogout && onLogout()}
+          title="Cerrar sesión"
+          aria-label="Cerrar sesión"
+          style={{
+            width: '100%', padding: '10px', borderRadius: 12, border: SUPERFICIE_MARCA.borde,
+            background: 'rgba(239, 68, 68, 0.18)', color: '#fecaca', cursor: 'pointer', display: 'flex',
+            alignItems: 'center', justifyContent: 'center', gap: 8, fontWeight: 600, fontSize: '0.78rem'
+          }}
+        >
+          <Icono.Cerrar size={16} />
+          {!isCollapsed && 'Salir'}
+        </button>
 
         <button
           onClick={() => setDarkMode(!darkMode)}

@@ -9,7 +9,7 @@ export default function Ticket({ orden }: { orden: any }) {
       <div style={{ textAlign: 'center' }}>
         <Image src={logoControlCel} alt="Logo" width={60} height={60} />
         <h4>Libreria Antártida</h4>
-        <p style={{ fontSize: '9px' }}>Catamarca 44 - Mendoza - Argentina</p>
+        <p style={{ fontSize: '9px' }}>Pasaje San Martin - Av. San Martin 1136 Local 48, Mendoza.</p>
       </div>
       <div style={divider}></div>
       <div style={{ fontSize: '11px' }}>
