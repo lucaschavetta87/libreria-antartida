@@ -20,36 +20,7 @@ import { dibujarEtiquetasEnDoc } from '../lib/etiquetasPdf';
 import { prepararImagenRedimensionada, subirArchivoAStorage } from '../lib/imageUtils';
 import { useToast } from './ui/Avisos';
 
-const CATEGORIAS_DEFAULT = [
-  { id: 'sagrada_madre', label: 'Sagrada Madre' },
-  { id: 'ganesha', label: 'Aromas Ganesha' },
-  { id: 'iluminarte', label: 'Iluminarte' },
-  { id: 'bazar_banos', label: 'Bazar Baños' },
-  { id: 'carbon_vegetal', label: 'Carbón Vegetal Encendido Rápido' },
-  { id: 'cuencos_armonizadores', label: 'Cuencos y Armonizadores' },
-  { id: 'fuentes_agua', label: 'Fuentes de Agua y Jardín Zen' },
-  { id: 'hornitos_vela', label: 'Hornitos a Vela y Eléctricos' },
-  { id: 'humidificadores', label: 'Humidificadores y Dispensadores' },
-  { id: 'lamparas_sal', label: 'Lámparas de Sal' },
-  { id: 'llamadores_atrapasuenos', label: 'Llamadores y Atrapasueños' },
-  { id: 'llaveros', label: 'Llaveros' },
-  { id: 'otros_ofertas', label: 'Otros Ofertas' },
-  { id: 'piedras_dijes', label: 'Piedras y Dijes' },
-  { id: 'portasahumerios_cascadas', label: 'Portasahumerios y Cascadas de Humo' },
-  { id: 'productos_defumacion', label: 'Productos de Defumación' },
-  { id: 'productos_esotericos', label: 'Productos Esotéricos' },
-  { id: 'regaleria_handicraft', label: 'Regalería y Handicraft' },
-  { id: 'rosarios_denarios', label: 'Rosarios Denarios y Pulas' },
-  { id: 'sahumadores_morteros', label: 'Sahumadores y Morteros' },
-  { id: 'sahumerios_nuna', label: 'Sahumerios Nuna Terra' },
-  { id: 'sales', label: 'Sales' },
-  { id: 'saphirus', label: 'Saphirus' },
-  { id: 'talismanes_ojos', label: 'Talismanes y Ojos' },
-  { id: 'tetera_tazas', label: 'Tetera Tazas y Vasos' },
-  { id: 'tarot_radiestesia', label: 'Tarot y Radiestesia' },
-  { id: 'sahumerios_importados', label: 'Sahumerios Importados' },
-  { id: 'velas', label: '🕯️ Velas' }
-];
+const CATEGORIAS_DEFAULT: { id: string; label: string }[] = [];
 
 const COLUMNAS_PRECIO = [
   { id: 'precio_costo', label: 'Costo' },
@@ -80,7 +51,7 @@ function ModalImportarExcel({ isOpen, onClose, categorias, stock, setStock, dark
   const [listaCategorias, setListaCategorias] = useState<any[]>(categorias || []);
   const [subcategoriasDB, setSubcategoriasDB] = useState<any[]>([]);
   const [subsubsDB, setSubsubsDB] = useState<{ id: string; categoria: string; subcategoria: string; nombre: string }[]>([]);
-  const [categoriaSeleccionada, setCategoriaSeleccionada] = useState('sagrada_madre');
+  const [categoriaSeleccionada, setCategoriaSeleccionada] = useState('');
   const [subcategoriaSeleccionada, setSubcategoriaSeleccionada] = useState('');
   const [subsubSeleccionada, setSubsubSeleccionada] = useState('');
 
@@ -309,7 +280,7 @@ function ModalImportarExcel({ isOpen, onClose, categorias, stock, setStock, dark
                      id: productoExistente.id,
                      codigo: codigoProducto || productoExistente.codigo,
                      ...datosPrecio,
-                     categoria: categoriaSeleccionada || 'sagrada_madre',
+                     categoria: categoriaSeleccionada || '',
                      subcategoria: subcategoriaSeleccionada || null,
                      subsubcategoria: subsubSeleccionada || null,
                  });
@@ -320,7 +291,7 @@ function ModalImportarExcel({ isOpen, onClose, categorias, stock, setStock, dark
                      codigo: codigoProducto,
                      nombre: nombreProducto,
                      ...datosPrecio,
-                     categoria: categoriaSeleccionada || 'sagrada_madre',
+                     categoria: categoriaSeleccionada || '',
                      subcategoria: subcategoriaSeleccionada || null,
                      subsubcategoria: subsubSeleccionada || null,
                      imagen_url: null,
@@ -334,7 +305,7 @@ function ModalImportarExcel({ isOpen, onClose, categorias, stock, setStock, dark
       const registrosParaActualizar = Array.from(mapaActualizar.values()).map(p => {
          const payload: any = {
              id: p.id,
-             categoria: categoriaSeleccionada || 'sagrada_madre',
+             categoria: categoriaSeleccionada || '',
              subcategoria: subcategoriaSeleccionada || null,
              subsubcategoria: subsubSeleccionada || null,
              ultima_actualizacion: new Date().toLocaleString()
@@ -510,7 +481,7 @@ function ModalImportarExcel({ isOpen, onClose, categorias, stock, setStock, dark
         precio_mayorista: datosPrecio.precio_mayorista !== undefined ? datosPrecio.precio_mayorista : (existenteDB?.precio_mayorista || 0),
         precio_minorista: datosPrecio.precio_minorista !== undefined ? datosPrecio.precio_minorista : (existenteDB?.precio_minorista || 0),
         precio_promo: datosPrecio.precio_promo !== undefined ? datosPrecio.precio_promo : (existenteDB?.precio_promo || null),
-        categoria: categoriaSeleccionada || 'sagrada_madre',
+        categoria: categoriaSeleccionada || '',
         subcategoria: subcategoriaSeleccionada || null,
         subsubcategoria: subsubSeleccionada || null,
         imagen_url: existenteDB?.imagen_url || null,
@@ -1485,7 +1456,7 @@ function PanelCarpetas({
 export default function Stock({ stock = [], setStock, darkMode = true }: any) {
   const toast = useToast();
   const { confirmar } = toast;
-  const [form, setForm] = useState({ id: '', codigo: '', nombre: '', precio_costo: '', precio_iva: '', precio_mayorista: '', precio_minorista: '', precio_promo: '', imagen_url: '', categoria: 'sagrada_madre', subcategoria: '', subsubcategoria: '', variedades: [] as Variedad[], sin_stock: false });
+  const [form, setForm] = useState({ id: '', codigo: '', nombre: '', precio_costo: '', precio_iva: '', precio_mayorista: '', precio_minorista: '', precio_promo: '', imagen_url: '', categoria: '', subcategoria: '', subsubcategoria: '', variedades: [] as Variedad[], sin_stock: false });
   const [editando, setEditando] = useState(false);
   const [imagenArchivo, setImagenArchivo] = useState<File | null>(null);
   const [subiendoImagen, setSubiendoImagen] = useState(false);
@@ -1526,13 +1497,13 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
   const [mostrarModalImportar, setMostrarModalImportar] = useState(false);
   const [mostrarModalActualizarPrecios, setMostrarModalActualizarPrecios] = useState(false);
 
-  const [catAumentar, setCatAumentar] = useState('sagrada_madre');
+  const [catAumentar, setCatAumentar] = useState('');
   const [columnaAumentar, setColumnaAumentar] = useState('precio_iva');
   const [porcentajeAumento, setPorcentajeAumento] = useState('');
   const [actualizandoGlobal, setActualizandoGlobal] = useState(false);
 
   const [seleccionados, setSeleccionados] = useState<string[]>([]);
-  const [nuevaCategoriaMasiva, setNuevaCategoriaMasiva] = useState('sagrada_madre');
+  const [nuevaCategoriaMasiva, setNuevaCategoriaMasiva] = useState('');
   const [actualizandoCategoriaMasiva, setActualizandoCategoriaMasiva] = useState(false);
   const [productoSeleccionado, setProductoSeleccionado] = useState<any>(null);
 
@@ -2446,14 +2417,14 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
   };
 
   const resetForm = () => {
-    setForm({ id: '', codigo: '', nombre: '', precio_costo: '', precio_iva: '', precio_mayorista: '', precio_minorista: '', precio_promo: '', imagen_url: '', categoria: 'sagrada_madre', subcategoria: '', subsubcategoria: '', variedades: [], sin_stock: false });
+    setForm({ id: '', codigo: '', nombre: '', precio_costo: '', precio_iva: '', precio_mayorista: '', precio_minorista: '', precio_promo: '', imagen_url: '', categoria: '', subcategoria: '', subsubcategoria: '', variedades: [], sin_stock: false });
     setImagenArchivo(null); setEditando(false); if (fileInputRef.current) fileInputRef.current.value = '';
     setMostrarModalFormulario(false);
   };
 
   const abrirFormularioNuevo = () => {
     resetForm();
-    setForm(f => ({ ...f, categoria: sel.cat || 'sagrada_madre', subcategoria: sel.sub && sel.sub !== SIN_SUB ? sel.sub : '', subsubcategoria: sel.subsub || '' }));
+    setForm(f => ({ ...f, categoria: sel.cat || '', subcategoria: sel.sub && sel.sub !== SIN_SUB ? sel.sub : '', subsubcategoria: sel.subsub || '' }));
     setMostrarModalFormulario(true);
   };
 
@@ -2461,7 +2432,7 @@ export default function Stock({ stock = [], setStock, darkMode = true }: any) {
     setForm({
       id: item.id || '', codigo: item.codigo || '', nombre: item.nombre || '',
       precio_costo: item.precio_costo ?? '', precio_iva: item.precio_iva ?? '', precio_mayorista: item.precio_mayorista ?? '', precio_minorista: item.precio_minorista ?? '',
-      precio_promo: item.precio_promo || '', imagen_url: item.imagen_url || '',       categoria: item.categoria || 'sagrada_madre', subcategoria: item.subcategoria || '',
+      precio_promo: item.precio_promo || '', imagen_url: item.imagen_url || '',       categoria: item.categoria || '', subcategoria: item.subcategoria || '',
       subsubcategoria: item.subsubcategoria || '',
       variedades: Array.isArray(item.variedades) ? item.variedades : [],
       sin_stock: item.sin_stock || false
